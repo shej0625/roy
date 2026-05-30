@@ -1,0 +1,222 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>틱택토</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, sans-serif;
+    background: #0f0f1a; color: #fff;
+    min-height: 100vh; display: flex;
+    flex-direction: column; align-items: center; padding: 16px;
+    user-select: none;
+  }
+  .back { align-self: flex-start; color: #ff63c8; text-decoration: none; font-size: 0.9rem; margin-bottom: 14px; }
+  h1 { font-size: 1.5rem; margin-bottom: 16px; }
+  .score-bar { display: flex; gap: 16px; margin-bottom: 20px; }
+  .score-box { background: #1a1a2e; border-radius: 12px; padding: 10px 20px; text-align: center; border: 1px solid #2a2a4a; }
+  .score-val { font-size: 1.8rem; font-weight: 700; }
+  .score-label { font-size: 0.7rem; color: #888; }
+  .score-box.x .score-val { color: #ff63c8; }
+  .score-box.draw .score-val { color: #888; }
+  .score-box.o .score-val { color: #63d4ff; }
+  .status {
+    font-size: 1rem; color: #888; margin-bottom: 18px;
+    min-height: 24px; text-align: center; font-weight: 500;
+  }
+  .status .x-text { color: #ff63c8; }
+  .status .o-text { color: #63d4ff; }
+  .board {
+    display: grid; grid-template-columns: repeat(3, 1fr);
+    gap: 10px; width: 100%; max-width: 300px; margin-bottom: 20px;
+  }
+  .cell {
+    aspect-ratio: 1;
+    background: #1a1a2e;
+    border-radius: 14px;
+    border: 2px solid #2a2a4a;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 2.4rem; font-weight: 900;
+    cursor: pointer; -webkit-tap-highlight-color: transparent;
+    transition: border-color 0.15s, background 0.15s;
+  }
+  .cell:empty:hover, .cell:empty:active { background: #22224a; }
+  .cell.x-cell { color: #ff63c8; border-color: #ff63c844; }
+  .cell.o-cell { color: #63d4ff; border-color: #63d4ff44; }
+  .cell.win-cell { background: #1a1a3a; border-color: #ffb363; animation: pulse 0.4s; }
+  @keyframes pulse { 0%,100%{transform:scale(1)} 50%{transform:scale(1.08)} }
+  .mode-toggle {
+    display: flex; background: #1a1a2e; border-radius: 10px; padding: 4px; gap: 4px; margin-bottom: 16px;
+    border: 1px solid #2a2a4a;
+  }
+  .mode-btn {
+    padding: 8px 16px; border-radius: 8px; border: none;
+    font-size: 0.85rem; font-weight: 600; cursor: pointer;
+    background: transparent; color: #888;
+    -webkit-tap-highlight-color: transparent;
+  }
+  .mode-btn.active { background: #6c63ff; color: #fff; }
+  .reset-btn {
+    padding: 12px 32px; border-radius: 12px; border: none;
+    font-size: 0.95rem; font-weight: 600;
+    background: linear-gradient(135deg, #ff63c8, #6c63ff);
+    color: #fff; cursor: pointer;
+  }
+</style>
+</head>
+<body>
+<a class="back" href="index.html">← 게임 목록</a>
+<h1>❌ 틱택토</h1>
+<div class="mode-toggle">
+  <button class="mode-btn active" id="pvAI">vs AI</button>
+  <button class="mode-btn" id="pv2P">2인 대전</button>
+</div>
+<div class="score-bar">
+  <div class="score-box x"><div class="score-val" id="xScore">0</div><div class="score-label">❌ 나</div></div>
+  <div class="score-box draw"><div class="score-val" id="drawScore">0</div><div class="score-label">무승부</div></div>
+  <div class="score-box o"><div class="score-val" id="oScore">0</div><div class="score-label">⭕ <span id="oLabel">AI</span></div></div>
+</div>
+<div class="status" id="status"><span class="x-text">❌ 당신의 차례</span></div>
+<div class="board" id="board"></div>
+<button class="reset-btn" id="resetBtn">새 게임</button>
+
+<script>
+let board = Array(9).fill('');
+let currentPlayer = 'X';
+let gameOver = false;
+let vsAI = true;
+let scores = { X: 0, O: 0, D: 0 };
+
+const WINS = [[0,1,2],[3,4,5],[6,7,8],[0,3,6],[1,4,7],[2,5,8],[0,4,8],[2,4,6]];
+
+function buildBoard() {
+  const boardEl = document.getElementById('board');
+  boardEl.innerHTML = '';
+  for (let i = 0; i < 9; i++) {
+    const cell = document.createElement('div');
+    cell.className = 'cell';
+    cell.dataset.i = i;
+    cell.addEventListener('click', () => play(i));
+    cell.addEventListener('touchend', e => { e.preventDefault(); play(i); });
+    boardEl.appendChild(cell);
+  }
+}
+
+function play(i) {
+  if (gameOver || board[i]) return;
+  if (vsAI && currentPlayer === 'O') return;
+  makeMove(i);
+  if (vsAI && !gameOver && currentPlayer === 'O') {
+    setTimeout(aiMove, 300);
+  }
+}
+
+function makeMove(i) {
+  board[i] = currentPlayer;
+  const cell = document.querySelector(`[data-i="${i}"]`);
+  cell.textContent = currentPlayer === 'X' ? '❌' : '⭕';
+  cell.className = 'cell ' + currentPlayer.toLowerCase() + '-cell';
+
+  const win = checkWin(currentPlayer);
+  if (win) {
+    win.forEach(idx => document.querySelector(`[data-i="${idx}"]`).classList.add('win-cell'));
+    scores[currentPlayer]++;
+    updateScores();
+    setStatus(currentPlayer === 'X'
+      ? '<span class="x-text">❌ 승리! 🎉</span>'
+      : `<span class="o-text">⭕ ${vsAI ? 'AI' : '상대'} 승리!</span>`);
+    gameOver = true;
+  } else if (board.every(c => c)) {
+    scores.D++;
+    updateScores();
+    setStatus('무승부!');
+    gameOver = true;
+  } else {
+    currentPlayer = currentPlayer === 'X' ? 'O' : 'X';
+    updateStatus();
+  }
+}
+
+function checkWin(player) {
+  for (const combo of WINS) {
+    if (combo.every(i => board[i] === player)) return combo;
+  }
+  return null;
+}
+
+function aiMove() {
+  const move = getBestMove();
+  makeMove(move);
+}
+
+function getBestMove() {
+  // Try to win
+  for (let i = 0; i < 9; i++) {
+    if (!board[i]) {
+      board[i] = 'O';
+      if (checkWin('O')) { board[i] = ''; return i; }
+      board[i] = '';
+    }
+  }
+  // Block player
+  for (let i = 0; i < 9; i++) {
+    if (!board[i]) {
+      board[i] = 'X';
+      if (checkWin('X')) { board[i] = ''; return i; }
+      board[i] = '';
+    }
+  }
+  // Center, corners, edges
+  const preferred = [4, 0, 2, 6, 8, 1, 3, 5, 7];
+  for (const i of preferred) { if (!board[i]) return i; }
+}
+
+function updateStatus() {
+  const name = currentPlayer === 'X' ? '❌ 당신의 차례' : `⭕ ${vsAI ? 'AI' : '상대'} 차례`;
+  const cls = currentPlayer === 'X' ? 'x-text' : 'o-text';
+  setStatus(`<span class="${cls}">${name}</span>`);
+}
+
+function setStatus(html) { document.getElementById('status').innerHTML = html; }
+
+function updateScores() {
+  document.getElementById('xScore').textContent = scores.X;
+  document.getElementById('oScore').textContent = scores.O;
+  document.getElementById('drawScore').textContent = scores.D;
+}
+
+function newGame() {
+  board = Array(9).fill('');
+  currentPlayer = 'X';
+  gameOver = false;
+  buildBoard();
+  updateStatus();
+}
+
+document.getElementById('resetBtn').addEventListener('click', newGame);
+document.getElementById('pvAI').addEventListener('click', () => {
+  vsAI = true;
+  document.getElementById('pvAI').classList.add('active');
+  document.getElementById('pv2P').classList.remove('active');
+  document.getElementById('oLabel').textContent = 'AI';
+  scores = { X: 0, O: 0, D: 0 };
+  updateScores();
+  newGame();
+});
+document.getElementById('pv2P').addEventListener('click', () => {
+  vsAI = false;
+  document.getElementById('pv2P').classList.add('active');
+  document.getElementById('pvAI').classList.remove('active');
+  document.getElementById('oLabel').textContent = '2P';
+  scores = { X: 0, O: 0, D: 0 };
+  updateScores();
+  newGame();
+});
+
+buildBoard();
+updateStatus();
+</script>
+</body>
+</html>

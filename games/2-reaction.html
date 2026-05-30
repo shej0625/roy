@@ -1,0 +1,207 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>반응 속도 테스트</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, sans-serif;
+    background: #0f0f1a;
+    color: #fff;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 20px;
+    user-select: none;
+  }
+  .back { align-self: flex-start; color: #ff6363; text-decoration: none; font-size: 0.9rem; margin-bottom: 20px; }
+  h1 { font-size: 1.6rem; margin-bottom: 6px; }
+  .subtitle { color: #888; font-size: 0.85rem; margin-bottom: 24px; }
+  .stats {
+    display: flex; gap: 16px; margin-bottom: 20px;
+    width: 100%; max-width: 360px;
+  }
+  .stat-box {
+    flex: 1; background: #1a1a2e;
+    border-radius: 12px; padding: 12px;
+    text-align: center; border: 1px solid #2a2a4a;
+  }
+  .stat-val { font-size: 1.4rem; font-weight: 700; color: #ff6363; }
+  .stat-label { font-size: 0.7rem; color: #888; margin-top: 2px; }
+  .tap-area {
+    width: 100%; max-width: 360px;
+    aspect-ratio: 1 / 1.1;
+    border-radius: 24px;
+    display: flex; flex-direction: column;
+    align-items: center; justify-content: center;
+    gap: 16px;
+    cursor: pointer;
+    -webkit-tap-highlight-color: transparent;
+    transition: background 0.1s;
+    border: 3px solid transparent;
+  }
+  .tap-area.wait {
+    background: #1a1a2e;
+    border-color: #2a2a4a;
+  }
+  .tap-area.ready {
+    background: #1a3300;
+    border-color: #63ff84;
+  }
+  .tap-area.too-early {
+    background: #330000;
+    border-color: #ff6363;
+  }
+  .tap-area.result {
+    background: #00153d;
+    border-color: #63d4ff;
+  }
+  .tap-emoji { font-size: 3.5rem; }
+  .tap-msg { font-size: 1.3rem; font-weight: 700; text-align: center; line-height: 1.4; }
+  .tap-sub { font-size: 0.85rem; color: #888; text-align: center; }
+  .results-section { margin-top: 24px; width: 100%; max-width: 360px; }
+  .results-section h3 { font-size: 0.85rem; color: #888; margin-bottom: 10px; }
+  .result-list { display: flex; flex-wrap: wrap; gap: 8px; }
+  .result-chip {
+    padding: 6px 12px; border-radius: 20px;
+    font-size: 0.8rem; font-weight: 600;
+    background: #1a1a2e; border: 1px solid #2a2a4a;
+    color: #63d4ff;
+  }
+  .result-chip.best { border-color: #63ff84; color: #63ff84; }
+</style>
+</head>
+<body>
+<a class="back" href="index.html">← 게임 목록</a>
+<h1>⚡ 반응 속도 테스트</h1>
+<p class="subtitle">초록색으로 바뀌면 바로 터치!</p>
+
+<div class="stats">
+  <div class="stat-box">
+    <div class="stat-val" id="bestVal">-</div>
+    <div class="stat-label">최고 기록 (ms)</div>
+  </div>
+  <div class="stat-box">
+    <div class="stat-val" id="avgVal">-</div>
+    <div class="stat-label">평균 (ms)</div>
+  </div>
+  <div class="stat-box">
+    <div class="stat-val" id="trialVal">0</div>
+    <div class="stat-label">시도 횟수</div>
+  </div>
+</div>
+
+<div class="tap-area wait" id="tapArea">
+  <div class="tap-emoji" id="tapEmoji">⏳</div>
+  <div class="tap-msg" id="tapMsg">터치해서 시작!</div>
+  <div class="tap-sub" id="tapSub">화면이 초록색으로 바뀌면 바로 터치하세요</div>
+</div>
+
+<div class="results-section">
+  <h3>기록 (ms)</h3>
+  <div class="result-list" id="resultList"></div>
+</div>
+
+<script>
+let state = 'idle'; // idle, waiting, ready, result
+let startTime = 0;
+let timer = null;
+let results = [];
+let bestTime = Infinity;
+
+const tapArea = document.getElementById('tapArea');
+const tapEmoji = document.getElementById('tapEmoji');
+const tapMsg = document.getElementById('tapMsg');
+const tapSub = document.getElementById('tapSub');
+
+tapArea.addEventListener('click', handleTap);
+tapArea.addEventListener('touchend', e => { e.preventDefault(); handleTap(); });
+
+function handleTap() {
+  if (state === 'idle') {
+    startWaiting();
+  } else if (state === 'waiting') {
+    tooEarly();
+  } else if (state === 'ready') {
+    showResult();
+  } else if (state === 'result') {
+    startWaiting();
+  }
+}
+
+function startWaiting() {
+  state = 'waiting';
+  tapArea.className = 'tap-area wait';
+  tapEmoji.textContent = '⏳';
+  tapMsg.textContent = '기다리세요...';
+  tapSub.textContent = '초록색으로 바뀌면 터치!';
+  const delay = 1500 + Math.random() * 3000;
+  timer = setTimeout(goReady, delay);
+}
+
+function goReady() {
+  state = 'ready';
+  startTime = Date.now();
+  tapArea.className = 'tap-area ready';
+  tapEmoji.textContent = '👆';
+  tapMsg.textContent = '지금 터치!';
+  tapSub.textContent = '';
+}
+
+function tooEarly() {
+  clearTimeout(timer);
+  state = 'result';
+  tapArea.className = 'tap-area too-early';
+  tapEmoji.textContent = '😱';
+  tapMsg.textContent = '너무 빨랐어요!';
+  tapSub.textContent = '터치해서 다시 시도';
+}
+
+function showResult() {
+  const elapsed = Date.now() - startTime;
+  results.push(elapsed);
+  if (elapsed < bestTime) bestTime = elapsed;
+
+  state = 'result';
+  tapArea.className = 'tap-area result';
+  tapEmoji.textContent = elapsed < 200 ? '🚀' : elapsed < 300 ? '⚡' : elapsed < 500 ? '👍' : '🐢';
+  tapMsg.textContent = `${elapsed} ms`;
+  tapSub.textContent = getRating(elapsed) + ' | 터치해서 다시';
+
+  updateStats();
+  addChip(elapsed);
+}
+
+function getRating(ms) {
+  if (ms < 150) return '인간 한계!';
+  if (ms < 200) return '반사 신경 최고!';
+  if (ms < 300) return '매우 빠름';
+  if (ms < 400) return '보통';
+  if (ms < 600) return '조금 느림';
+  return '느림';
+}
+
+function updateStats() {
+  const avg = Math.round(results.reduce((a, b) => a + b, 0) / results.length);
+  document.getElementById('bestVal').textContent = bestTime;
+  document.getElementById('avgVal').textContent = avg;
+  document.getElementById('trialVal').textContent = results.length;
+}
+
+function addChip(ms) {
+  const list = document.getElementById('resultList');
+  const chip = document.createElement('span');
+  chip.className = 'result-chip' + (ms === bestTime ? ' best' : '');
+  chip.textContent = ms + 'ms';
+  list.insertBefore(chip, list.firstChild);
+  if (list.children.length > 10) list.removeChild(list.lastChild);
+  // re-mark best
+  Array.from(list.children).forEach(c => c.classList.remove('best'));
+  if (list.firstChild) list.firstChild.classList.add('best');
+}
+</script>
+</body>
+</html>
