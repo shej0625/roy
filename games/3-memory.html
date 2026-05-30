@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>기억력 카드 게임</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, sans-serif;
+    background: #0f0f1a; color: #fff;
+    min-height: 100vh; display: flex;
+    flex-direction: column; align-items: center;
+    padding: 16px; user-select: none;
+  }
+  .back { align-self: flex-start; color: #63d4ff; text-decoration: none; font-size: 0.9rem; margin-bottom: 14px; }
+  h1 { font-size: 1.5rem; margin-bottom: 4px; }
+  .info-bar {
+    display: flex; gap: 16px; margin: 12px 0;
+    font-size: 0.85rem; color: #888;
+  }
+  .info-bar span { color: #63d4ff; font-weight: 600; }
+  .grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 8px;
+    width: 100%; max-width: 360px;
+  }
+  .card-wrap {
+    aspect-ratio: 1;
+    perspective: 600px;
+    cursor: pointer;
+    -webkit-tap-highlight-color: transparent;
+  }
+  .card-inner {
+    width: 100%; height: 100%;
+    position: relative;
+    transform-style: preserve-3d;
+    transition: transform 0.35s;
+    border-radius: 10px;
+  }
+  .card-wrap.flipped .card-inner { transform: rotateY(180deg); }
+  .card-face {
+    position: absolute; inset: 0;
+    border-radius: 10px;
+    display: flex; align-items: center; justify-content: center;
+    backface-visibility: hidden;
+    font-size: 1.6rem;
+  }
+  .card-back {
+    background: #1a1a2e;
+    border: 2px solid #2a2a4a;
+  }
+  .card-front {
+    background: #16213e;
+    border: 2px solid #63d4ff44;
+    transform: rotateY(180deg);
+  }
+  .card-wrap.matched .card-front {
+    background: #003322;
+    border-color: #63ff84;
+  }
+  .card-back::after { content: '?'; font-size: 1.4rem; color: #2a2a4a; }
+  .msg {
+    margin-top: 20px; font-size: 1.1rem;
+    font-weight: 600; color: #63ff84;
+    min-height: 30px; text-align: center;
+  }
+  .btn {
+    margin-top: 16px; padding: 14px 32px;
+    border-radius: 12px; border: none;
+    font-size: 1rem; font-weight: 600;
+    background: linear-gradient(135deg, #63d4ff, #6c63ff);
+    color: #fff; cursor: pointer;
+    -webkit-tap-highlight-color: transparent;
+  }
+</style>
+</head>
+<body>
+<a class="back" href="index.html">← 게임 목록</a>
+<h1>🃏 기억력 카드</h1>
+<div class="info-bar">
+  <div>이동: <span id="movesEl">0</span></div>
+  <div>맞춤: <span id="matchedEl">0</span>/8</div>
+  <div>시간: <span id="timerEl">0</span>초</div>
+</div>
+<div class="grid" id="grid"></div>
+<div class="msg" id="msg"></div>
+<button class="btn" id="restartBtn">새 게임</button>
+
+<script>
+const EMOJIS = ['🍎','🍊','🍋','🍇','🍓','🍉','🥝','🍑'];
+let cards = [], flipped = [], matched = 0, moves = 0, lock = false;
+let startTime = null, timerInterval = null;
+
+function init() {
+  const grid = document.getElementById('grid');
+  grid.innerHTML = '';
+  flipped = []; matched = 0; moves = 0; lock = false;
+  document.getElementById('movesEl').textContent = 0;
+  document.getElementById('matchedEl').textContent = 0;
+  document.getElementById('timerEl').textContent = 0;
+  document.getElementById('msg').textContent = '';
+  clearInterval(timerInterval);
+  startTime = null;
+
+  const pairs = [...EMOJIS, ...EMOJIS].sort(() => Math.random() - 0.5);
+  cards = pairs.map((emoji, i) => {
+    const wrap = document.createElement('div');
+    wrap.className = 'card-wrap';
+    wrap.innerHTML = `<div class="card-inner"><div class="card-face card-back"></div><div class="card-face card-front">${emoji}</div></div>`;
+    wrap.dataset.emoji = emoji;
+    wrap.dataset.index = i;
+    wrap.addEventListener('click', () => flipCard(wrap));
+    wrap.addEventListener('touchend', e => { e.preventDefault(); flipCard(wrap); });
+    grid.appendChild(wrap);
+    return wrap;
+  });
+}
+
+function flipCard(card) {
+  if (lock || card.classList.contains('flipped') || card.classList.contains('matched')) return;
+  if (!startTime) {
+    startTime = Date.now();
+    timerInterval = setInterval(() => {
+      document.getElementById('timerEl').textContent = Math.floor((Date.now() - startTime) / 1000);
+    }, 1000);
+  }
+  card.classList.add('flipped');
+  flipped.push(card);
+  if (flipped.length === 2) {
+    moves++;
+    document.getElementById('movesEl').textContent = moves;
+    lock = true;
+    checkMatch();
+  }
+}
+
+function checkMatch() {
+  const [a, b] = flipped;
+  if (a.dataset.emoji === b.dataset.emoji) {
+    a.classList.add('matched');
+    b.classList.add('matched');
+    matched++;
+    document.getElementById('matchedEl').textContent = matched;
+    flipped = [];
+    lock = false;
+    if (matched === 8) {
+      clearInterval(timerInterval);
+      const elapsed = Math.floor((Date.now() - startTime) / 1000);
+      document.getElementById('msg').textContent = `🎉 완성! ${moves}번 이동, ${elapsed}초`;
+    }
+  } else {
+    setTimeout(() => {
+      a.classList.remove('flipped');
+      b.classList.remove('flipped');
+      flipped = [];
+      lock = false;
+    }, 800);
+  }
+}
+
+document.getElementById('restartBtn').addEventListener('click', init);
+init();
+</script>
+</body>
+</html>

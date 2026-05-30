@@ -1,0 +1,264 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>단어 기억 게임</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, sans-serif;
+    background: #0f0f1a; color: #fff;
+    min-height: 100vh; display: flex;
+    flex-direction: column; align-items: center; padding: 16px;
+    user-select: none;
+  }
+  .back { align-self: flex-start; color: #d463ff; text-decoration: none; font-size: 0.9rem; margin-bottom: 14px; }
+  h1 { font-size: 1.5rem; margin-bottom: 4px; }
+  .desc { color: #888; font-size: 0.8rem; margin-bottom: 16px; text-align: center; }
+  .phase-indicator {
+    display: flex; gap: 8px; margin-bottom: 16px;
+  }
+  .phase-dot {
+    width: 10px; height: 10px; border-radius: 50%;
+    background: #2a2a4a;
+    transition: background 0.3s;
+  }
+  .phase-dot.active { background: #d463ff; }
+  .phase-dot.done { background: #63ff84; }
+  .card {
+    background: #1a1a2e; border-radius: 20px;
+    padding: 24px; width: 100%; max-width: 360px;
+    border: 1px solid #2a2a4a; margin-bottom: 16px; text-align: center;
+  }
+  .card-title { font-size: 0.85rem; color: #888; margin-bottom: 16px; }
+  .timer-bar-wrap { background: #2a2a4a; border-radius: 8px; height: 6px; margin-bottom: 16px; }
+  .timer-bar { height: 100%; background: #d463ff; border-radius: 8px; transition: width 0.1s linear; }
+  .word-list {
+    display: flex; flex-wrap: wrap; gap: 10px; justify-content: center;
+  }
+  .word-chip {
+    padding: 10px 16px; border-radius: 20px; font-size: 1rem; font-weight: 600;
+    background: #16213e; border: 2px solid #d463ff44; color: #d463ff;
+    animation: appear 0.3s;
+  }
+  @keyframes appear { from { transform: scale(0.7); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+  .answer-grid {
+    display: grid; grid-template-columns: 1fr 1fr;
+    gap: 8px; width: 100%; max-width: 360px;
+  }
+  .answer-btn {
+    padding: 14px; border-radius: 12px; border: 2px solid #2a2a4a;
+    font-size: 0.95rem; font-weight: 600;
+    background: #1a1a2e; color: #fff;
+    cursor: pointer; -webkit-tap-highlight-color: transparent;
+    transition: border-color 0.15s, background 0.15s;
+  }
+  .answer-btn:active { transform: scale(0.96); }
+  .answer-btn.correct { background: #003322; border-color: #63ff84; color: #63ff84; }
+  .answer-btn.wrong { background: #330000; border-color: #ff6363; color: #ff6363; }
+  .answer-btn.miss { background: #330033; border-color: #d463ff; color: #d463ff; }
+  .answer-btn:disabled { opacity: 0.7; }
+  .score-display {
+    font-size: 2rem; font-weight: 700; color: #d463ff; text-align: center; margin-bottom: 8px;
+  }
+  .result-detail { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; margin-bottom: 16px; }
+  .result-chip { padding: 6px 14px; border-radius: 20px; font-size: 0.85rem; font-weight: 600; }
+  .result-chip.ok { background: #63ff8422; border: 1px solid #63ff8444; color: #63ff84; }
+  .result-chip.fail { background: #ff636322; border: 1px solid #ff636344; color: #ff6363; }
+  .btn { padding: 14px 32px; border-radius: 12px; border: none; font-size: 1rem; font-weight: 600; background: linear-gradient(135deg, #d463ff, #6c63ff); color: #fff; cursor: pointer; }
+  .overlay { position: fixed; inset: 0; background: #0f0f1aee; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 14px; z-index: 100; }
+  .overlay.hidden { display: none; }
+  .overlay-emoji { font-size: 3.5rem; }
+  .overlay-title { font-size: 1.5rem; font-weight: 700; }
+  .overlay-info { color: #888; font-size: 0.85rem; text-align: center; line-height: 1.8; }
+  .level-select { display: flex; gap: 8px; }
+  .level-btn { padding: 8px 16px; border-radius: 8px; border: none; font-size: 0.85rem; font-weight: 600; cursor: pointer; background: #1a1a2e; color: #888; border: 1px solid #2a2a4a; }
+  .level-btn.active { background: #d463ff; color: #fff; border-color: #d463ff; }
+</style>
+</head>
+<body>
+<a class="back" href="index.html">← 게임 목록</a>
+<h1>📝 단어 기억 게임</h1>
+<p class="desc">단어를 외운 후, 봤던 단어를 골라보세요!</p>
+
+<div class="phase-indicator" id="phaseIndicator"></div>
+<div id="gameArea" style="width:100%;max-width:360px;display:flex;flex-direction:column;align-items:center;"></div>
+
+<div class="overlay" id="overlay">
+  <div class="overlay-emoji">📝</div>
+  <div class="overlay-title">단어 기억 게임</div>
+  <div class="overlay-info">단어를 보여드릴게요.<br>외운 다음, 어떤 단어를 봤는지 맞혀보세요!</div>
+  <div class="level-select">
+    <button class="level-btn active" data-n="5" data-t="5">쉬움 (5개)</button>
+    <button class="level-btn" data-n="7" data-t="6">보통 (7개)</button>
+    <button class="level-btn" data-n="10" data-t="7">어려움 (10개)</button>
+  </div>
+  <button class="btn" id="startBtn">시작!</button>
+</div>
+
+<script>
+const ALL_WORDS = [
+  '사과','바나나','포도','딸기','수박','참외','복숭아','레몬','오렌지','키위',
+  '강아지','고양이','토끼','햄스터','앵무새','거북이','금붕어','두더지','원숭이','코끼리',
+  '학교','도서관','공원','병원','마트','카페','식당','헬스장','수영장','영화관',
+  '컴퓨터','스마트폰','태블릿','노트북','이어폰','충전기','카메라','스피커','키보드','마우스',
+  '피자','라면','김치찌개','삼겹살','치킨','떡볶이','순대','불고기','냉면','비빔밥',
+  '봄','여름','가을','겨울','비','눈','바람','구름','무지개','안개',
+  '기쁨','슬픔','분노','공포','놀람','혐오','사랑','희망','믿음','용기',
+];
+
+let wordCount = 5, memorizeTime = 5;
+let shownWords = [], round = 0, totalRounds = 3;
+let scores = [], currentPhase = 'idle';
+let timerInterval = null;
+
+function getLevelBtns() { return document.querySelectorAll('.level-btn'); }
+
+getLevelBtns().forEach(btn => {
+  btn.addEventListener('click', () => {
+    getLevelBtns().forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    wordCount = +btn.dataset.n;
+    memorizeTime = +btn.dataset.t;
+  });
+});
+
+function startGame() {
+  scores = []; round = 0;
+  document.getElementById('overlay').classList.add('hidden');
+  updatePhaseIndicator();
+  nextRound();
+}
+
+function updatePhaseIndicator() {
+  const el = document.getElementById('phaseIndicator');
+  el.innerHTML = Array.from({length: totalRounds}, (_, i) => {
+    const cls = i < round ? 'done' : i === round ? 'active' : '';
+    return `<div class="phase-dot ${cls}"></div>`;
+  }).join('');
+}
+
+function nextRound() {
+  if (round >= totalRounds) { showFinal(); return; }
+  shownWords = pickRandom(ALL_WORDS, wordCount);
+  showMemorize();
+}
+
+function pickRandom(arr, n) {
+  return [...arr].sort(() => Math.random() - 0.5).slice(0, n);
+}
+
+function showMemorize() {
+  currentPhase = 'memorize';
+  const area = document.getElementById('gameArea');
+  area.innerHTML = `
+    <div class="card" style="width:100%">
+      <div class="card-title">🧠 외워보세요! (라운드 ${round + 1}/${totalRounds})</div>
+      <div class="timer-bar-wrap"><div class="timer-bar" id="timerBar" style="width:100%"></div></div>
+      <div class="word-list" id="wordListEl"></div>
+    </div>
+  `;
+  const wordListEl = document.getElementById('wordListEl');
+  shownWords.forEach((w, i) => {
+    setTimeout(() => {
+      const chip = document.createElement('div');
+      chip.className = 'word-chip';
+      chip.textContent = w;
+      wordListEl.appendChild(chip);
+    }, i * 200);
+  });
+
+  let t = memorizeTime;
+  const bar = document.getElementById('timerBar');
+  timerInterval = setInterval(() => {
+    t -= 0.1;
+    bar.style.width = (t / memorizeTime * 100) + '%';
+    if (t <= 0) { clearInterval(timerInterval); showRecall(); }
+  }, 100);
+}
+
+function showRecall() {
+  currentPhase = 'recall';
+  const decoys = pickRandom(ALL_WORDS.filter(w => !shownWords.includes(w)), wordCount);
+  const choices = [...shownWords, ...decoys].sort(() => Math.random() - 0.5);
+  let selected = new Set(), submitted = false;
+
+  const area = document.getElementById('gameArea');
+  area.innerHTML = `
+    <div class="card" style="width:100%">
+      <div class="card-title">🤔 어떤 단어를 봤나요? (${wordCount}개 선택)</div>
+      <div id="selectedCount" style="font-size:0.8rem;color:#d463ff;margin-bottom:8px;">0 / ${wordCount} 선택</div>
+    </div>
+    <div class="answer-grid" id="answerGrid"></div>
+    <button class="btn" id="submitBtn" style="margin-top:14px;opacity:0.5" disabled>확인!</button>
+  `;
+
+  const grid = document.getElementById('answerGrid');
+  choices.forEach(w => {
+    const btn = document.createElement('button');
+    btn.className = 'answer-btn';
+    btn.textContent = w;
+    btn.addEventListener('click', () => {
+      if (submitted) return;
+      if (selected.has(w)) {
+        selected.delete(w);
+        btn.style.borderColor = '';
+        btn.style.background = '';
+        btn.style.color = '';
+      } else if (selected.size < wordCount) {
+        selected.add(w);
+        btn.style.borderColor = '#d463ff';
+        btn.style.background = '#1a003a';
+        btn.style.color = '#d463ff';
+      }
+      document.getElementById('selectedCount').textContent = `${selected.size} / ${wordCount} 선택`;
+      const submitBtn = document.getElementById('submitBtn');
+      if (selected.size === wordCount) { submitBtn.disabled = false; submitBtn.style.opacity = 1; }
+      else { submitBtn.disabled = true; submitBtn.style.opacity = 0.5; }
+    });
+    grid.appendChild(btn);
+  });
+
+  document.getElementById('submitBtn').addEventListener('click', () => {
+    if (submitted) return;
+    submitted = true;
+    let correct = 0;
+    document.querySelectorAll('.answer-btn').forEach(btn => {
+      const w = btn.textContent;
+      const wasShown = shownWords.includes(w);
+      const wasPicked = selected.has(w);
+      btn.disabled = true;
+      btn.style.borderColor = '';
+      btn.style.background = '';
+      btn.style.color = '';
+      if (wasShown && wasPicked) { btn.classList.add('correct'); correct++; }
+      else if (!wasShown && wasPicked) { btn.classList.add('wrong'); }
+      else if (wasShown && !wasPicked) { btn.classList.add('miss'); }
+    });
+    scores.push({ correct, total: wordCount });
+    document.getElementById('selectedCount').textContent = `✅ ${correct} / ${wordCount} 정답`;
+    setTimeout(() => { round++; updatePhaseIndicator(); nextRound(); }, 1800);
+  });
+}
+
+function showFinal() {
+  const totalCorrect = scores.reduce((a, b) => a + b.correct, 0);
+  const totalPossible = scores.reduce((a, b) => a + b.total, 0);
+  const pct = Math.round(totalCorrect / totalPossible * 100);
+  const overlay = document.getElementById('overlay');
+  overlay.querySelector('.overlay-emoji').textContent = pct >= 80 ? '🏆' : pct >= 60 ? '🎉' : '💪';
+  overlay.querySelector('.overlay-title').textContent = '결과!';
+  overlay.querySelector('.overlay-info').innerHTML =
+    `정확도: <strong style="color:#d463ff">${pct}%</strong><br>` +
+    scores.map((s, i) => `라운드 ${i+1}: ${s.correct}/${s.total}`).join(' | ');
+  document.getElementById('startBtn').textContent = '다시 하기';
+  overlay.classList.remove('hidden');
+  document.getElementById('gameArea').innerHTML = '';
+  document.getElementById('phaseIndicator').innerHTML = '';
+}
+
+document.getElementById('startBtn').addEventListener('click', startGame);
+</script>
+</body>
+</html>
