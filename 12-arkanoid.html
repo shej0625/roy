@@ -1,0 +1,537 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>아르카노이드</title>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html, body {
+  width: 100%; height: 100%;
+  background: #050510;
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  overflow: hidden; touch-action: none; user-select: none;
+}
+#gameWrap {
+  position: relative;
+  box-shadow: 0 0 30px #6c63ff66, 0 0 60px #6c63ff33;
+  border: 1px solid #3a3060;
+  border-radius: 4px;
+  overflow: hidden;
+}
+#gameCanvas { display: block; background: #0a0a1e; }
+#overlay {
+  display: none; position: absolute; top: 0; left: 0; right: 0; bottom: 0;
+  background: rgba(5,5,20,0.88); backdrop-filter: blur(4px);
+  flex-direction: column; align-items: center; justify-content: center;
+  gap: 18px; z-index: 20;
+}
+#overlay.show { display: flex; }
+#overlay .big { font-size: 3.5rem; }
+#overlay h2 { font-size: 1.5rem; color: #a78bfa; text-align: center; }
+#overlay p { color: #ccc; font-size: 1rem; text-align: center; }
+#overlay button {
+  background: linear-gradient(135deg, #6c63ff, #a78bfa); color: #fff;
+  border: none; border-radius: 14px; padding: 13px 36px;
+  font-size: 1.05rem; font-weight: 700; cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+#overlay button:active { transform: scale(0.96); }
+</style>
+</head>
+<body>
+<div id="gameWrap">
+  <canvas id="gameCanvas"></canvas>
+  <div id="overlay">
+    <div class="big" id="ovEmoji">🎉</div>
+    <h2 id="ovTitle">게임 시작!</h2>
+    <p id="ovScore"></p>
+    <button id="ovBtn" onclick="restartGame()">시작!</button>
+  </div>
+</div>
+
+<script>
+const canvas = document.getElementById('gameCanvas');
+const ctx = canvas.getContext('2d');
+
+// Dimensions
+const CW = Math.min(window.innerWidth, 420);
+const CH = Math.min(window.innerHeight, 700);
+canvas.width = CW;
+canvas.height = CH;
+document.getElementById('gameWrap').style.width = CW + 'px';
+document.getElementById('gameWrap').style.height = CH + 'px';
+
+// Layout constants
+const HUD_H = 36;
+const GAME_TOP = HUD_H;
+const GAME_H = CH - GAME_TOP;
+const BW = 44, BH = 22, BGAP = 4;
+const COLS = 8, ROWS = 6;
+const BRICK_AREA_W = COLS * (BW + BGAP) - BGAP;
+const BRICK_OX = Math.floor((CW - BRICK_AREA_W) / 2);
+const BRICK_OY = GAME_TOP + 20;
+
+// Brick types: [color, maxHP, pts, glow]
+const BTYPE = {
+  N: { color:'#ccccdd', glow:'#aaaacc', hp:1, pts:10, name:'normal' },
+  S: { color:'#4488ff', glow:'#2266dd', hp:2, pts:20, name:'strong' },
+  H: { color:'#ff4433', glow:'#cc2211', hp:3, pts:30, name:'hard' },
+  G: { color:'#ffcc00', glow:'#cc9900', hp:99, pts:0, name:'gold' },
+  P: { color:'#44cc66', glow:'#229944', hp:1, pts:15, name:'powerup' }
+};
+
+// Level definitions (8×6 grid, chars: N/S/H/G/P/_=empty)
+const LEVELS = [
+  [ // Level 1 - simple waves
+    'NNNNNNNN',
+    'NSSSSSNN',
+    'NNNNNNNN',
+    'PPNNNPNN',
+    '________',
+    '________'
+  ],
+  [ // Level 2
+    'SSSSSSSS',
+    'SHHHHHHS',
+    'SNNNNNS_',
+    'NPPPPNN_',
+    'NNNNNNNN',
+    '________'
+  ],
+  [ // Level 3
+    'GHGHGHGH',
+    'HHHHHHHH',
+    'SSSSSSSS',
+    'NNPPNNPP',
+    'NNNNNNNN',
+    'SSNNNNSS'
+  ],
+  [ // Level 4
+    'GGNNNNGG',
+    'GHHHHHG_',
+    'GSSSSSG_',
+    'GNNNNNGS',
+    'PPPPPPPP',
+    'HHHHHHHH'
+  ],
+  [ // Level 5 - boss
+    'GHGHGHGH',
+    'HHHHHHHH',
+    'GSSSSSSG',
+    'GHHHHHG_',
+    'GSSSSSG_',
+    'PPPPPPPP'
+  ]
+];
+
+// Paddle
+let paddle = { x: CW/2 - 40, y: CH - 30, w: 80, h: 14 };
+// Balls array
+let balls = [];
+// Bricks array
+let bricks = [];
+// Power-ups
+let powerUps = [];
+// Lasers
+let lasers = [];
+// Game state
+let score = 0, lives = 3, level = 0;
+let laserActive = false, laserTimer = 0, laserShootTimer = 0;
+let wideActive = false, wideTimer = 0;
+let gameOver = false, won = false;
+let started = false;
+let lastTS = 0, rafId = null;
+
+// Touch/mouse tracking
+let touchX = -1;
+canvas.addEventListener('touchmove', e => {
+  e.preventDefault();
+  const rect = canvas.getBoundingClientRect();
+  const scaleX = canvas.width / rect.width;
+  touchX = (e.touches[0].clientX - rect.left) * scaleX;
+}, { passive: false });
+canvas.addEventListener('mousemove', e => {
+  const rect = canvas.getBoundingClientRect();
+  const scaleX = canvas.width / rect.width;
+  touchX = (e.clientX - rect.left) * scaleX;
+});
+// Laser tap
+canvas.addEventListener('touchstart', e => {
+  e.preventDefault();
+  if (laserActive) shootLaser();
+}, { passive: false });
+canvas.addEventListener('click', () => { if (laserActive) shootLaser(); });
+document.addEventListener('keydown', e => { if (e.code==='Space') shootLaser(); });
+
+function buildBricks(lvl) {
+  bricks = [];
+  const pattern = LEVELS[lvl];
+  for (let r = 0; r < ROWS; r++) {
+    const row = pattern[r] || '________';
+    for (let c = 0; c < COLS; c++) {
+      const ch2 = row[c] || '_';
+      if (ch2 === '_') continue;
+      const bt = BTYPE[ch2];
+      if (!bt) continue;
+      bricks.push({
+        x: BRICK_OX + c*(BW+BGAP),
+        y: BRICK_OY + r*(BH+BGAP),
+        w: BW, h: BH,
+        hp: bt.hp, maxHp: bt.hp,
+        type: ch2,
+        color: bt.color, glow: bt.glow,
+        pts: bt.pts,
+        alive: true
+      });
+    }
+  }
+}
+
+function spawnBall(vx2, vy2) {
+  balls.push({
+    x: paddle.x + paddle.w/2,
+    y: paddle.y - 12,
+    r: 10,
+    vx: vx2 || (Math.random()>0.5?1:-1)*220,
+    vy: vy2 || -300
+  });
+}
+
+function resetBall() {
+  balls = [];
+  spawnBall((Math.random()>0.5?1:-1)*220, -300);
+}
+
+function initLevel(lvl) {
+  buildBricks(lvl);
+  resetBall();
+  laserActive = false; laserTimer = 0; laserShootTimer = 0;
+  wideActive = false; wideTimer = 0;
+  paddle.w = 80;
+  powerUps = []; lasers = [];
+}
+
+function restartGame() {
+  score = 0; lives = 3; level = 0;
+  gameOver = false; won = false; started = true;
+  touchX = CW/2;
+  initLevel(0);
+  document.getElementById('overlay').classList.remove('show');
+  if (rafId) cancelAnimationFrame(rafId);
+  lastTS = performance.now();
+  rafId = requestAnimationFrame(loop);
+}
+
+function loop(ts) {
+  const dt = Math.min((ts - lastTS)/1000, 0.05);
+  lastTS = ts;
+  update(dt);
+  draw();
+  if (!gameOver && !won) rafId = requestAnimationFrame(loop);
+}
+
+const MAX_BALL_SPEED = 600;
+
+function update(dt) {
+  // Paddle movement
+  if (touchX >= 0) {
+    const targetX = touchX - paddle.w/2;
+    paddle.x = Math.max(0, Math.min(CW - paddle.w, targetX));
+  }
+
+  // Laser timers
+  if (laserActive) {
+    laserTimer -= dt;
+    laserShootTimer -= dt;
+    if (laserTimer <= 0) { laserActive = false; }
+    if (laserShootTimer <= 0) { shootLaser(); laserShootTimer = 0.5; }
+  }
+
+  // Wide timer
+  if (wideActive) {
+    wideTimer -= dt;
+    if (wideTimer <= 0) { wideActive = false; paddle.w = 80; }
+  }
+
+  // Update lasers
+  lasers = lasers.filter(l => l.y > GAME_TOP);
+  lasers.forEach(l => {
+    l.y -= 700 * dt;
+    // Check brick collisions
+    bricks.forEach(b => {
+      if (!b.alive) return;
+      if (l.active && l.x >= b.x && l.x <= b.x+b.w && l.y >= b.y && l.y <= b.y+b.h) {
+        l.active = false;
+        hitBrick(b);
+      }
+    });
+  });
+  lasers = lasers.filter(l => l.active);
+
+  // Update power-ups
+  powerUps = powerUps.filter(p => p.y < CH + 20);
+  powerUps.forEach(p => {
+    p.y += 200 * dt;
+    // Catch with paddle
+    if (p.y+p.h >= paddle.y && p.y <= paddle.y+paddle.h &&
+        p.x+p.w >= paddle.x && p.x <= paddle.x+paddle.w && p.active) {
+      p.active = false;
+      applyPowerUp(p.type);
+    }
+  });
+  powerUps = powerUps.filter(p => p.active);
+
+  // Update balls
+  balls.forEach((ball, bi) => {
+    // Speed cap
+    const sp = Math.sqrt(ball.vx**2 + ball.vy**2);
+    if (sp > MAX_BALL_SPEED) { ball.vx *= MAX_BALL_SPEED/sp; ball.vy *= MAX_BALL_SPEED/sp; }
+
+    ball.x += ball.vx * dt;
+    ball.y += ball.vy * dt;
+
+    // Wall bounce left/right
+    if (ball.x - ball.r < 0) { ball.x = ball.r; ball.vx = Math.abs(ball.vx); }
+    if (ball.x + ball.r > CW) { ball.x = CW - ball.r; ball.vx = -Math.abs(ball.vx); }
+    // Top bounce
+    if (ball.y - ball.r < GAME_TOP) { ball.y = GAME_TOP + ball.r; ball.vy = Math.abs(ball.vy); }
+
+    // Paddle bounce
+    if (ball.vy > 0 &&
+        ball.y + ball.r >= paddle.y &&
+        ball.y + ball.r <= paddle.y + paddle.h + 8 &&
+        ball.x >= paddle.x - ball.r &&
+        ball.x <= paddle.x + paddle.w + ball.r) {
+      ball.y = paddle.y - ball.r;
+      const rel = (ball.x - (paddle.x + paddle.w/2)) / (paddle.w/2);
+      const ang = rel * 65 * Math.PI/180;
+      const sp2 = Math.sqrt(ball.vx**2 + ball.vy**2);
+      ball.vx = Math.sin(ang) * sp2;
+      ball.vy = -Math.cos(ang) * sp2;
+      // Ensure minimum upward speed
+      if (Math.abs(ball.vy) < 150) ball.vy = -150;
+    }
+
+    // Brick collision
+    bricks.forEach(b => {
+      if (!b.alive) return;
+      const closestX = Math.max(b.x, Math.min(ball.x, b.x+b.w));
+      const closestY = Math.max(b.y, Math.min(ball.y, b.y+b.h));
+      const dx = ball.x - closestX, dy = ball.y - closestY;
+      const dist = Math.sqrt(dx*dx+dy*dy);
+      if (dist < ball.r) {
+        hitBrick(b);
+        // Determine bounce direction
+        const overlapX = ball.r - Math.abs(dx);
+        const overlapY = ball.r - Math.abs(dy);
+        if (b.type !== 'G') {
+          if (overlapX < overlapY) {
+            ball.vx = dx > 0 ? Math.abs(ball.vx) : -Math.abs(ball.vx);
+          } else {
+            ball.vy = dy > 0 ? Math.abs(ball.vy) : -Math.abs(ball.vy);
+          }
+        } else {
+          if (overlapX < overlapY) ball.vx *= -1; else ball.vy *= -1;
+        }
+      }
+    });
+
+    // Ball lost
+    if (ball.y - ball.r > CH) {
+      balls.splice(bi, 1);
+    }
+  });
+
+  // Check ball count
+  if (balls.length === 0) {
+    lives--;
+    if (lives <= 0) {
+      endGame(false);
+    } else {
+      resetBall();
+    }
+  }
+
+  // Check level clear
+  const remaining = bricks.filter(b => b.alive && b.type !== 'G');
+  if (remaining.length === 0) {
+    level++;
+    if (level >= LEVELS.length) {
+      endGame(true);
+    } else {
+      initLevel(level);
+    }
+  }
+}
+
+function hitBrick(b) {
+  if (b.type === 'G') return;
+  b.hp--;
+  if (b.hp <= 0) {
+    b.alive = false;
+    score += b.pts;
+    if (b.type === 'P') spawnPowerUp(b.x + b.w/2, b.y + b.h);
+  }
+}
+
+function spawnPowerUp(x, y) {
+  const types = ['wide','multi','fast','laser'];
+  const emojis = { wide:'🔵', multi:'🔴', fast:'⚡', laser:'🔫' };
+  const t = types[Math.floor(Math.random()*types.length)];
+  powerUps.push({ x:x-15, y, w:30, h:20, type:t, emoji:emojis[t], active:true });
+}
+
+function applyPowerUp(type) {
+  if (type === 'wide') {
+    wideActive = true; wideTimer = 8;
+    paddle.w = Math.min(paddle.w + 40, 160);
+  } else if (type === 'multi') {
+    const base = balls[0] || { x:CW/2, y:paddle.y-12, vx:200, vy:-300 };
+    const sp = Math.sqrt(base.vx**2 + base.vy**2);
+    spawnBall(base.vx * 0.9 + 80, base.vy);
+    spawnBall(base.vx * 0.9 - 80, base.vy);
+  } else if (type === 'fast') {
+    balls.forEach(b => { b.vx *= 1.3; b.vy *= 1.3; });
+  } else if (type === 'laser') {
+    laserActive = true; laserTimer = 5; laserShootTimer = 0.1;
+  }
+}
+
+function shootLaser() {
+  if (!laserActive) return;
+  const lx = paddle.x + paddle.w * 0.25;
+  const rx = paddle.x + paddle.w * 0.75;
+  lasers.push({ x:lx, y:paddle.y, active:true });
+  lasers.push({ x:rx, y:paddle.y, active:true });
+}
+
+function endGame(isWin) {
+  gameOver = !isWin;
+  won = isWin;
+  const ov = document.getElementById('overlay');
+  document.getElementById('ovEmoji').textContent = isWin ? '🏆' : '💔';
+  document.getElementById('ovTitle').textContent = isWin ? '클리어!' : '게임 오버';
+  document.getElementById('ovScore').textContent = '점수: ' + score;
+  document.getElementById('ovBtn').textContent = '다시 하기';
+  ov.classList.add('show');
+  if (rafId) cancelAnimationFrame(rafId);
+}
+
+// ─── DRAWING ────────────────────────────────────────────────────────
+function draw() {
+  ctx.clearRect(0, 0, CW, CH);
+
+  // HUD background
+  ctx.fillStyle = '#0d0d20';
+  ctx.fillRect(0, 0, CW, HUD_H);
+  ctx.fillStyle = '#2a2a4a';
+  ctx.fillRect(0, HUD_H-1, CW, 1);
+
+  // Score
+  ctx.fillStyle = '#a78bfa'; ctx.font = 'bold 15px sans-serif'; ctx.textAlign = 'left';
+  ctx.fillText('★ ' + score, 8, HUD_H - 10);
+  // Level
+  ctx.textAlign = 'center';
+  ctx.fillStyle = '#fbbf24';
+  ctx.fillText('LEVEL ' + (level+1), CW/2, HUD_H - 10);
+  // Lives
+  ctx.textAlign = 'right';
+  ctx.fillStyle = '#ff6b6b';
+  ctx.fillText('❤️'.repeat(lives), CW - 6, HUD_H - 10);
+
+  // Power-up indicators
+  if (laserActive) {
+    ctx.fillStyle = '#ff4444aa';
+    ctx.fillRect(4, HUD_H + 2, 50, 4);
+    ctx.fillStyle = '#ff4444';
+    ctx.fillRect(4, HUD_H + 2, 50 * (laserTimer / 5), 4);
+  }
+  if (wideActive) {
+    ctx.fillStyle = '#4488ffaa';
+    ctx.fillRect(CW - 54, HUD_H + 2, 50, 4);
+    ctx.fillStyle = '#4488ff';
+    ctx.fillRect(CW - 54, HUD_H + 2, 50 * (wideTimer / 8), 4);
+  }
+
+  // Bricks
+  bricks.forEach(b => {
+    if (!b.alive) return;
+    const cracked = (b.hp < b.maxHp && b.type !== 'G');
+    // Glow
+    ctx.shadowColor = b.glow; ctx.shadowBlur = 8;
+    // Gradient fill
+    const grad = ctx.createLinearGradient(b.x, b.y, b.x, b.y+b.h);
+    grad.addColorStop(0, cracked ? '#555566' : b.color);
+    grad.addColorStop(1, cracked ? '#333344' : b.glow);
+    ctx.fillStyle = grad;
+    ctx.beginPath();
+    ctx.roundRect(b.x+1, b.y+1, b.w-2, b.h-2, 3);
+    ctx.fill();
+    ctx.shadowBlur = 0;
+    // Crack lines
+    if (cracked) {
+      ctx.strokeStyle = '#ffffff44'; ctx.lineWidth = 1;
+      ctx.beginPath(); ctx.moveTo(b.x+b.w*0.3, b.y); ctx.lineTo(b.x+b.w*0.6, b.y+b.h); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(b.x+b.w*0.6, b.y); ctx.lineTo(b.x+b.w*0.3, b.y+b.h); ctx.stroke();
+    }
+    // HP dots for hard bricks
+    if (b.type === 'H' && b.hp > 1) {
+      for (let d=0; d<b.hp; d++) {
+        ctx.fillStyle = '#fff'; ctx.beginPath(); ctx.arc(b.x+6+d*7, b.y+b.h/2, 2, 0, Math.PI*2); ctx.fill();
+      }
+    }
+  });
+
+  // Power-ups
+  powerUps.forEach(p => {
+    ctx.font = '16px serif'; ctx.textAlign = 'center';
+    ctx.fillText(p.emoji, p.x+p.w/2, p.y+p.h);
+  });
+
+  // Lasers
+  lasers.forEach(l => {
+    ctx.shadowColor = '#ff4444'; ctx.shadowBlur = 8;
+    ctx.strokeStyle = '#ff6666'; ctx.lineWidth = 3;
+    ctx.beginPath(); ctx.moveTo(l.x, l.y); ctx.lineTo(l.x, l.y - 20); ctx.stroke();
+    ctx.shadowBlur = 0;
+  });
+
+  // Paddle
+  const padGrad = ctx.createLinearGradient(paddle.x, paddle.y, paddle.x, paddle.y+paddle.h);
+  padGrad.addColorStop(0, laserActive ? '#ff6644' : '#a78bfa');
+  padGrad.addColorStop(1, laserActive ? '#cc2200' : '#6c63ff');
+  ctx.shadowColor = laserActive ? '#ff4444' : '#a78bfa'; ctx.shadowBlur = 12;
+  ctx.fillStyle = padGrad;
+  ctx.beginPath();
+  ctx.roundRect(paddle.x, paddle.y, paddle.w, paddle.h, 7);
+  ctx.fill();
+  ctx.shadowBlur = 0;
+
+  // Balls
+  balls.forEach(ball => {
+    const bg = ctx.createRadialGradient(ball.x-3, ball.y-3, 2, ball.x, ball.y, ball.r);
+    bg.addColorStop(0, '#ffffff');
+    bg.addColorStop(0.5, '#e0d8ff');
+    bg.addColorStop(1, '#a78bfa');
+    ctx.shadowColor = '#a78bfa'; ctx.shadowBlur = 14;
+    ctx.fillStyle = bg;
+    ctx.beginPath(); ctx.arc(ball.x, ball.y, ball.r, 0, Math.PI*2); ctx.fill();
+    ctx.shadowBlur = 0;
+  });
+}
+
+// Show start overlay
+const ov = document.getElementById('overlay');
+ov.classList.add('show');
+document.getElementById('ovEmoji').textContent = '🎮';
+document.getElementById('ovTitle').textContent = '아르카노이드';
+document.getElementById('ovScore').textContent = '터치로 패들을 움직여요!';
+document.getElementById('ovBtn').textContent = '시작!';
+
+// Init touch position at center
+touchX = CW / 2;
+</script>
+</body>
+</html>
