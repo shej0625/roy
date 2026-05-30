@@ -1,0 +1,191 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>색깔 퀴즈</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, sans-serif;
+    background: #0f0f1a; color: #fff;
+    min-height: 100vh; display: flex;
+    flex-direction: column; align-items: center; padding: 16px;
+    user-select: none;
+  }
+  .back { align-self: flex-start; color: #ffb363; text-decoration: none; font-size: 0.9rem; margin-bottom: 14px; }
+  h1 { font-size: 1.5rem; margin-bottom: 4px; }
+  .desc { color: #888; font-size: 0.8rem; text-align: center; margin-bottom: 20px; line-height: 1.5; }
+  .info-bar { display: flex; gap: 12px; margin-bottom: 20px; width: 100%; max-width: 360px; justify-content: center; }
+  .info-box { background: #1a1a2e; border-radius: 12px; padding: 10px 16px; text-align: center; border: 1px solid #2a2a4a; flex: 1; }
+  .info-val { font-size: 1.5rem; font-weight: 700; color: #ffb363; }
+  .info-label { font-size: 0.7rem; color: #888; }
+  .time-bar-wrap { width: 100%; max-width: 360px; background: #1a1a2e; border-radius: 8px; height: 8px; margin-bottom: 24px; }
+  .time-bar { height: 100%; background: linear-gradient(90deg, #63ff84, #ffb363, #ff6363); border-radius: 8px; transition: width 0.1s linear; }
+  .word-display {
+    font-size: 3rem; font-weight: 900;
+    margin-bottom: 12px; letter-spacing: 2px;
+    min-height: 80px; display: flex; align-items: center; justify-content: center;
+    transition: transform 0.1s;
+  }
+  .question-text { color: #888; font-size: 0.85rem; margin-bottom: 24px; }
+  .choices {
+    display: grid; grid-template-columns: 1fr 1fr;
+    gap: 12px; width: 100%; max-width: 360px;
+  }
+  .choice-btn {
+    padding: 18px; border-radius: 14px; border: 2px solid;
+    font-size: 1rem; font-weight: 700;
+    cursor: pointer; -webkit-tap-highlight-color: transparent;
+    transition: transform 0.1s, opacity 0.1s;
+    background: transparent;
+  }
+  .choice-btn:active { transform: scale(0.95); opacity: 0.8; }
+  .choice-btn.correct { animation: pulse-green 0.3s; }
+  .choice-btn.wrong { animation: shake 0.3s; }
+  @keyframes pulse-green { 0%,100%{transform:scale(1)} 50%{transform:scale(1.08)} }
+  @keyframes shake { 0%,100%{transform:translateX(0)} 25%{transform:translateX(-6px)} 75%{transform:translateX(6px)} }
+  .feedback {
+    font-size: 1.2rem; font-weight: 700; min-height: 36px;
+    margin-top: 16px; text-align: center;
+  }
+  .overlay {
+    position: fixed; inset: 0; background: #0f0f1aee;
+    display: flex; flex-direction: column;
+    align-items: center; justify-content: center; gap: 14px;
+  }
+  .overlay.hidden { display: none; }
+  .overlay-title { font-size: 1.8rem; font-weight: 700; }
+  .overlay-score { font-size: 1rem; color: #ffb363; }
+  .start-btn {
+    padding: 14px 36px; border-radius: 12px; border: none;
+    font-size: 1rem; font-weight: 600;
+    background: linear-gradient(135deg, #ffb363, #ff6363);
+    color: #fff; cursor: pointer;
+  }
+</style>
+</head>
+<body>
+<a class="back" href="index.html">← 게임 목록</a>
+<h1>🌈 색깔 퀴즈</h1>
+<p class="desc">글자의 <strong>색깔</strong>을 선택하세요<br>(글자 내용이 아닙니다!)</p>
+<div class="info-bar">
+  <div class="info-box"><div class="info-val" id="scoreEl">0</div><div class="info-label">점수</div></div>
+  <div class="info-box"><div class="info-val" id="wrongEl">0</div><div class="info-label">오답</div></div>
+  <div class="info-box"><div class="info-val" id="timeEl">60</div><div class="info-label">시간</div></div>
+</div>
+<div class="time-bar-wrap"><div class="time-bar" id="timeBar"></div></div>
+<div class="word-display" id="wordDisplay">빨강</div>
+<p class="question-text">이 글자는 어떤 색으로 쓰여 있나요?</p>
+<div class="choices" id="choices"></div>
+<div class="feedback" id="feedback"></div>
+
+<div class="overlay" id="overlay">
+  <div style="font-size:3rem">🌈</div>
+  <div class="overlay-title">색깔 퀴즈</div>
+  <div class="overlay-score">글자 색을 빠르게 맞혀보세요!</div>
+  <button class="start-btn" id="startBtn">시작!</button>
+</div>
+
+<script>
+const COLORS = [
+  { name: '빨강', value: '#ff4444' },
+  { name: '파랑', value: '#4488ff' },
+  { name: '초록', value: '#44cc66' },
+  { name: '노랑', value: '#ffcc00' },
+  { name: '보라', value: '#aa44ff' },
+  { name: '주황', value: '#ff8833' },
+];
+
+let score = 0, wrong = 0, timeLeft = 60;
+let gameRunning = false;
+let countdownTimer = null;
+let correctColor = null;
+let answered = false;
+
+function newQuestion() {
+  answered = false;
+  document.getElementById('feedback').textContent = '';
+
+  const wordColor = COLORS[Math.floor(Math.random() * COLORS.length)];
+  let textColor;
+  do { textColor = COLORS[Math.floor(Math.random() * COLORS.length)]; }
+  while (textColor === wordColor);
+
+  correctColor = textColor;
+  const wordEl = document.getElementById('wordDisplay');
+  wordEl.textContent = wordColor.name;
+  wordEl.style.color = textColor.value;
+
+  const choices = [textColor];
+  while (choices.length < 4) {
+    const c = COLORS[Math.floor(Math.random() * COLORS.length)];
+    if (!choices.find(x => x.name === c.name)) choices.push(c);
+  }
+  choices.sort(() => Math.random() - 0.5);
+
+  const choicesEl = document.getElementById('choices');
+  choicesEl.innerHTML = '';
+  choices.forEach(c => {
+    const btn = document.createElement('button');
+    btn.className = 'choice-btn';
+    btn.textContent = c.name;
+    btn.style.color = c.value;
+    btn.style.borderColor = c.value + '66';
+    btn.addEventListener('click', () => answer(btn, c));
+    btn.addEventListener('touchend', e => { e.preventDefault(); answer(btn, c); });
+    choicesEl.appendChild(btn);
+  });
+}
+
+function answer(btn, chosen) {
+  if (!gameRunning || answered) return;
+  answered = true;
+  const fb = document.getElementById('feedback');
+  if (chosen.name === correctColor.name) {
+    score++;
+    document.getElementById('scoreEl').textContent = score;
+    btn.classList.add('correct');
+    fb.style.color = '#63ff84';
+    fb.textContent = '✓ 정답!';
+  } else {
+    wrong++;
+    document.getElementById('wrongEl').textContent = wrong;
+    btn.classList.add('wrong');
+    fb.style.color = '#ff6363';
+    fb.textContent = `✗ 틀림! 정답: ${correctColor.name}`;
+  }
+  setTimeout(newQuestion, 600);
+}
+
+function startGame() {
+  score = 0; wrong = 0; timeLeft = 60; gameRunning = true;
+  document.getElementById('scoreEl').textContent = 0;
+  document.getElementById('wrongEl').textContent = 0;
+  document.getElementById('timeEl').textContent = 60;
+  document.getElementById('timeBar').style.width = '100%';
+  document.getElementById('overlay').classList.add('hidden');
+  newQuestion();
+
+  countdownTimer = setInterval(() => {
+    timeLeft--;
+    document.getElementById('timeEl').textContent = timeLeft;
+    document.getElementById('timeBar').style.width = (timeLeft / 60 * 100) + '%';
+    if (timeLeft <= 0) endGame();
+  }, 1000);
+}
+
+function endGame() {
+  gameRunning = false;
+  clearInterval(countdownTimer);
+  const overlay = document.getElementById('overlay');
+  overlay.querySelector('.overlay-title').textContent = '게임 종료!';
+  overlay.querySelector('.overlay-score').textContent = `정답: ${score}개 | 오답: ${wrong}개`;
+  document.getElementById('startBtn').textContent = '다시 하기';
+  overlay.classList.remove('hidden');
+}
+
+document.getElementById('startBtn').addEventListener('click', startGame);
+</script>
+</body>
+</html>

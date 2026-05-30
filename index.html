@@ -1,0 +1,190 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>모바일 게임 모음</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    background: #0f0f1a;
+    color: #fff;
+    min-height: 100vh;
+    padding: 20px;
+  }
+  h1 {
+    text-align: center;
+    font-size: 1.8rem;
+    margin-bottom: 8px;
+    background: linear-gradient(135deg, #6c63ff, #ff6584);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+  }
+  .subtitle {
+    text-align: center;
+    color: #888;
+    font-size: 0.9rem;
+    margin-bottom: 28px;
+  }
+  .grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 14px;
+    max-width: 500px;
+    margin: 0 auto;
+  }
+  .section-label {
+    text-align: center;
+    font-size: 0.72rem;
+    font-weight: 700;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    color: #555;
+    margin: 16px auto 8px;
+    max-width: 500px;
+  }
+  .section-label.new-label { color: #fbbf24; font-size: 0.78rem; }
+  .divider {
+    border: none; border-top: 1px solid #2a2a4a;
+    max-width: 500px; margin: 14px auto 4px;
+  }
+  a.card {
+    background: #1a1a2e;
+    border-radius: 16px;
+    padding: 20px 14px;
+    text-align: center;
+    text-decoration: none;
+    color: #fff;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 10px;
+    border: 1px solid #2a2a4a;
+    transition: transform 0.15s, border-color 0.15s;
+    -webkit-tap-highlight-color: transparent;
+    position: relative;
+  }
+  a.card:active { transform: scale(0.96); }
+  a.card .emoji { font-size: 2.4rem; }
+  a.card .name { font-size: 0.95rem; font-weight: 600; }
+  a.card .desc { font-size: 0.75rem; color: #888; }
+  /* Classic game colors */
+  #classicGrid a.card:nth-child(1)  { border-color: #6c63ff44; } #classicGrid a.card:nth-child(1):active  { border-color: #6c63ff; }
+  #classicGrid a.card:nth-child(2)  { border-color: #ff636344; } #classicGrid a.card:nth-child(2):active  { border-color: #ff6363; }
+  #classicGrid a.card:nth-child(3)  { border-color: #63d4ff44; } #classicGrid a.card:nth-child(3):active  { border-color: #63d4ff; }
+  #classicGrid a.card:nth-child(4)  { border-color: #63ff8444; } #classicGrid a.card:nth-child(4):active  { border-color: #63ff84; }
+  #classicGrid a.card:nth-child(5)  { border-color: #ffb36344; } #classicGrid a.card:nth-child(5):active  { border-color: #ffb363; }
+  #classicGrid a.card:nth-child(6)  { border-color: #ff63c844; } #classicGrid a.card:nth-child(6):active  { border-color: #ff63c8; }
+  #classicGrid a.card:nth-child(7)  { border-color: #a3ff6344; } #classicGrid a.card:nth-child(7):active  { border-color: #a3ff63; }
+  #classicGrid a.card:nth-child(8)  { border-color: #ff636344; } #classicGrid a.card:nth-child(8):active  { border-color: #ff6363; }
+  #classicGrid a.card:nth-child(9)  { border-color: #63b3ff44; } #classicGrid a.card:nth-child(9):active  { border-color: #63b3ff; }
+  #classicGrid a.card:nth-child(10) { border-color: #d463ff44; } #classicGrid a.card:nth-child(10):active { border-color: #d463ff; }
+  /* New games – gold border */
+  a.card.new-game {
+    border: 2px solid #fbbf2455;
+    background: linear-gradient(135deg, #1a1a2e 60%, #1e1900);
+  }
+  a.card.new-game:active { border-color: #fbbf24; box-shadow: 0 0 16px #fbbf2433; }
+  .new-badge {
+    position: absolute; top: 8px; right: 8px;
+    background: linear-gradient(135deg, #f59e0b, #fbbf24);
+    color: #0a0a00; font-size: 0.6rem; font-weight: 900;
+    padding: 2px 6px; border-radius: 8px; letter-spacing: 0.5px;
+  }
+</style>
+</head>
+<body>
+<h1>🎮 모바일 게임 모음</h1>
+<p class="subtitle">터치로 즐기는 간단한 게임 15종</p>
+
+<div class="section-label">클래식 게임</div>
+<div class="grid" id="classicGrid">
+  <a class="card" href="1-number.html">
+    <span class="emoji">🎯</span>
+    <span class="name">숫자 맞추기</span>
+    <span class="desc">1~100 숫자를 찾아라</span>
+  </a>
+  <a class="card" href="2-reaction.html">
+    <span class="emoji">⚡</span>
+    <span class="name">반응 속도</span>
+    <span class="desc">빠르게 터치하라!</span>
+  </a>
+  <a class="card" href="3-memory.html">
+    <span class="emoji">🃏</span>
+    <span class="name">기억력 카드</span>
+    <span class="desc">짝을 맞춰보세요</span>
+  </a>
+  <a class="card" href="4-mole.html">
+    <span class="emoji">🐹</span>
+    <span class="name">두더지 잡기</span>
+    <span class="desc">두더지를 잡아라!</span>
+  </a>
+  <a class="card" href="5-color.html">
+    <span class="emoji">🌈</span>
+    <span class="name">색깔 퀴즈</span>
+    <span class="desc">글자 색을 맞혀라</span>
+  </a>
+  <a class="card" href="6-tictactoe.html">
+    <span class="emoji">❌</span>
+    <span class="name">틱택토</span>
+    <span class="desc">AI와 대결하라</span>
+  </a>
+  <a class="card" href="7-bubble.html">
+    <span class="emoji">🫧</span>
+    <span class="name">버블 팝</span>
+    <span class="desc">버블을 터뜨려라!</span>
+  </a>
+  <a class="card" href="8-math.html">
+    <span class="emoji">🧮</span>
+    <span class="name">수학 퀴즈</span>
+    <span class="desc">빠른 계산 대결</span>
+  </a>
+  <a class="card" href="9-puzzle.html">
+    <span class="emoji">🧩</span>
+    <span class="name">슬라이딩 퍼즐</span>
+    <span class="desc">숫자를 순서대로</span>
+  </a>
+  <a class="card" href="10-word.html">
+    <span class="emoji">📝</span>
+    <span class="name">단어 기억</span>
+    <span class="desc">단어를 외워보세요</span>
+  </a>
+</div>
+
+<hr class="divider">
+<div class="section-label new-label">✨ 신규 게임 🆕</div>
+<div class="grid" id="newGrid">
+  <a class="card new-game" href="11-launcher.html">
+    <span class="new-badge">신규 🆕</span>
+    <span class="emoji">🐿️</span>
+    <span class="name">다람쥐 날리기</span>
+    <span class="desc">우주로 날려보내기!</span>
+  </a>
+  <a class="card new-game" href="12-arkanoid.html">
+    <span class="new-badge">신규 🆕</span>
+    <span class="emoji">🏓</span>
+    <span class="name">아르카노이드</span>
+    <span class="desc">벽돌을 깨부숴라</span>
+  </a>
+  <a class="card new-game" href="13-spotdiff.html">
+    <span class="new-badge">신규 🆕</span>
+    <span class="emoji">🔍</span>
+    <span class="name">틀린 그림 찾기</span>
+    <span class="desc">5가지 차이점 발견!</span>
+  </a>
+  <a class="card new-game" href="14-territory.html">
+    <span class="new-badge">신규 🆕</span>
+    <span class="emoji">🗺️</span>
+    <span class="name">땅따먹기</span>
+    <span class="desc">영역을 차지하라!</span>
+  </a>
+  <a class="card new-game" href="15-wordchain.html">
+    <span class="new-badge">신규 🆕</span>
+    <span class="emoji">🗣️</span>
+    <span class="name">끝말잇기</span>
+    <span class="desc">CPU와 단어 대결!</span>
+  </a>
+</div>
+</body>
+</html>
