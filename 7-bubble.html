@@ -1,0 +1,190 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>버블 팝</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, sans-serif;
+    background: #0a0a1a; color: #fff;
+    min-height: 100vh; display: flex;
+    flex-direction: column; align-items: center;
+    padding: 16px; overflow: hidden;
+    user-select: none;
+  }
+  .back { align-self: flex-start; color: #a3ff63; text-decoration: none; font-size: 0.9rem; margin-bottom: 10px; z-index: 10; position: relative; }
+  .hud {
+    display: flex; gap: 12px; margin-bottom: 10px;
+    width: 100%; max-width: 360px; z-index: 10; position: relative;
+  }
+  .hud-box { background: #1a1a2e; border-radius: 10px; padding: 8px 14px; text-align: center; flex: 1; border: 1px solid #2a2a4a; }
+  .hud-val { font-size: 1.4rem; font-weight: 700; color: #a3ff63; }
+  .hud-label { font-size: 0.65rem; color: #888; }
+  .lives { display: flex; gap: 6px; justify-content: center; margin-bottom: 10px; z-index: 10; position: relative; }
+  .heart { font-size: 1.5rem; }
+  .game-area {
+    position: relative; width: 100%; max-width: 360px;
+    flex: 1; border-radius: 16px;
+    background: linear-gradient(180deg, #0a0a2a, #050510);
+    border: 1px solid #1a1a3a;
+    overflow: hidden; min-height: 420px;
+  }
+  .bubble {
+    position: absolute;
+    border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 1.4rem;
+    cursor: pointer; -webkit-tap-highlight-color: transparent;
+    transition: transform 0.1s;
+    border: 2px solid rgba(255,255,255,0.2);
+    box-shadow: inset -4px -4px 12px rgba(0,0,0,0.3), inset 4px 4px 8px rgba(255,255,255,0.15);
+  }
+  .bubble:active { transform: scale(0.85); }
+  .bubble.pop { animation: popAnim 0.25s forwards; }
+  @keyframes popAnim {
+    0% { transform: scale(1); opacity: 1; }
+    60% { transform: scale(1.4); opacity: 0.6; }
+    100% { transform: scale(0); opacity: 0; }
+  }
+  .overlay {
+    position: fixed; inset: 0; background: #0a0a1aee;
+    display: flex; flex-direction: column;
+    align-items: center; justify-content: center; gap: 14px; z-index: 100;
+  }
+  .overlay.hidden { display: none; }
+  .overlay-emoji { font-size: 4rem; }
+  .overlay-title { font-size: 1.6rem; font-weight: 700; }
+  .overlay-info { color: #888; font-size: 0.9rem; text-align: center; line-height: 1.6; }
+  .start-btn {
+    padding: 14px 36px; border-radius: 12px; border: none;
+    font-size: 1rem; font-weight: 600;
+    background: linear-gradient(135deg, #a3ff63, #63d4ff);
+    color: #0a0a1a; cursor: pointer;
+  }
+</style>
+</head>
+<body>
+<a class="back" href="index.html">← 게임 목록</a>
+<div class="hud">
+  <div class="hud-box"><div class="hud-val" id="scoreEl">0</div><div class="hud-label">점수</div></div>
+  <div class="hud-box"><div class="hud-val" id="levelEl">1</div><div class="hud-label">레벨</div></div>
+  <div class="hud-box"><div class="hud-val" id="comboEl">x1</div><div class="hud-label">콤보</div></div>
+</div>
+<div class="lives" id="livesEl">❤️❤️❤️</div>
+<div class="game-area" id="gameArea"></div>
+
+<div class="overlay" id="overlay">
+  <div class="overlay-emoji">🫧</div>
+  <div class="overlay-title">버블 팝!</div>
+  <div class="overlay-info">버블을 터치해서 터뜨리세요.<br>놓치면 하트를 잃어요!</div>
+  <button class="start-btn" id="startBtn">시작!</button>
+</div>
+
+<script>
+const COLORS = ['#ff6384','#ff9f40','#ffcd56','#4bc0c0','#36a2eb','#9966ff','#ff6384'];
+const EMOJIS = ['⭐','🌟','💫','✨','🔥','💥','🌈','🎯','💎','🎪'];
+let score = 0, lives = 3, level = 1, combo = 1, gameRunning = false;
+let spawnInterval = null, bubbles = [];
+
+const gameArea = document.getElementById('gameArea');
+
+function createBubble() {
+  if (!gameRunning) return;
+  const size = 50 + Math.random() * 40;
+  const areaW = gameArea.offsetWidth;
+  const x = Math.random() * (areaW - size);
+  const areaH = gameArea.offsetHeight;
+  const duration = Math.max(2000, 5000 - level * 300);
+
+  const bubble = document.createElement('div');
+  bubble.className = 'bubble';
+  bubble.style.cssText = `width:${size}px;height:${size}px;left:${x}px;bottom:-${size}px;background:${COLORS[Math.floor(Math.random()*COLORS.length)]}44;`;
+  bubble.textContent = EMOJIS[Math.floor(Math.random() * EMOJIS.length)];
+
+  bubble.addEventListener('click', () => popBubble(bubble));
+  bubble.addEventListener('touchend', e => { e.preventDefault(); popBubble(bubble); });
+
+  gameArea.appendChild(bubble);
+  bubbles.push(bubble);
+
+  let bottom = -size;
+  const step = (areaH + size * 2) / (duration / 16);
+  const interval = setInterval(() => {
+    if (!gameRunning) { clearInterval(interval); return; }
+    bottom += step;
+    bubble.style.bottom = bottom + 'px';
+    if (bottom > areaH + size) {
+      clearInterval(interval);
+      if (bubble.parentNode) {
+        bubble.remove();
+        bubbles = bubbles.filter(b => b !== bubble);
+        loseLife();
+      }
+    }
+  }, 16);
+  bubble._interval = interval;
+}
+
+function popBubble(bubble) {
+  if (bubble._popped || !gameRunning) return;
+  bubble._popped = true;
+  clearInterval(bubble._interval);
+  score += 10 * combo;
+  combo = Math.min(combo + 1, 8);
+  document.getElementById('scoreEl').textContent = score;
+  document.getElementById('comboEl').textContent = 'x' + combo;
+  document.getElementById('levelEl').textContent = level = Math.floor(score / 100) + 1;
+  bubble.classList.add('pop');
+  setTimeout(() => { bubble.remove(); bubbles = bubbles.filter(b => b !== bubble); }, 250);
+}
+
+function loseLife() {
+  lives--;
+  combo = 1;
+  document.getElementById('comboEl').textContent = 'x1';
+  updateLives();
+  if (lives <= 0) endGame();
+}
+
+function updateLives() {
+  document.getElementById('livesEl').textContent = '❤️'.repeat(lives) + '🖤'.repeat(3 - lives);
+}
+
+function startGame() {
+  score = 0; lives = 3; level = 1; combo = 1; gameRunning = true;
+  bubbles.forEach(b => { clearInterval(b._interval); b.remove(); });
+  bubbles = [];
+  document.getElementById('scoreEl').textContent = 0;
+  document.getElementById('levelEl').textContent = 1;
+  document.getElementById('comboEl').textContent = 'x1';
+  updateLives();
+  document.getElementById('overlay').classList.add('hidden');
+
+  const spawn = () => {
+    if (!gameRunning) return;
+    createBubble();
+    const delay = Math.max(400, 1200 - level * 60);
+    spawnInterval = setTimeout(spawn, delay);
+  };
+  spawn();
+}
+
+function endGame() {
+  gameRunning = false;
+  clearTimeout(spawnInterval);
+  bubbles.forEach(b => clearInterval(b._interval));
+
+  const overlay = document.getElementById('overlay');
+  overlay.querySelector('.overlay-emoji').textContent = score >= 200 ? '🏆' : '😅';
+  overlay.querySelector('.overlay-title').textContent = '게임 오버!';
+  overlay.querySelector('.overlay-info').textContent = `최종 점수: ${score}점\n레벨: ${level}`;
+  document.getElementById('startBtn').textContent = '다시 하기';
+  overlay.classList.remove('hidden');
+}
+
+document.getElementById('startBtn').addEventListener('click', startGame);
+</script>
+</body>
+</html>

@@ -1,0 +1,192 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>수학 퀴즈</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, sans-serif;
+    background: #0f0f1a; color: #fff;
+    min-height: 100vh; display: flex;
+    flex-direction: column; align-items: center; padding: 16px;
+    user-select: none;
+  }
+  .back { align-self: flex-start; color: #ff6363; text-decoration: none; font-size: 0.9rem; margin-bottom: 14px; }
+  h1 { font-size: 1.5rem; margin-bottom: 16px; }
+  .hud { display: flex; gap: 12px; margin-bottom: 16px; width: 100%; max-width: 360px; }
+  .hud-box { background: #1a1a2e; border-radius: 12px; padding: 10px; text-align: center; flex: 1; border: 1px solid #2a2a4a; }
+  .hud-val { font-size: 1.5rem; font-weight: 700; color: #ff6363; }
+  .hud-label { font-size: 0.65rem; color: #888; }
+  .time-bar-wrap { width: 100%; max-width: 360px; background: #1a1a2e; border-radius: 8px; height: 8px; margin-bottom: 20px; }
+  .time-bar { height: 100%; background: linear-gradient(90deg, #63ff84, #ffb363, #ff6363); border-radius: 8px; transition: width 0.5s linear; }
+  .question-card {
+    background: #1a1a2e; border-radius: 20px;
+    padding: 28px; width: 100%; max-width: 360px;
+    text-align: center; border: 1px solid #2a2a4a; margin-bottom: 16px;
+  }
+  .difficulty { font-size: 0.75rem; color: #888; margin-bottom: 8px; }
+  .question { font-size: 2.4rem; font-weight: 700; letter-spacing: 2px; min-height: 60px; display: flex; align-items: center; justify-content: center; }
+  .choices {
+    display: grid; grid-template-columns: 1fr 1fr;
+    gap: 10px; width: 100%; max-width: 360px;
+  }
+  .choice-btn {
+    padding: 18px; border-radius: 14px; border: 2px solid #2a2a4a;
+    font-size: 1.3rem; font-weight: 700;
+    background: #1a1a2e; color: #fff;
+    cursor: pointer; -webkit-tap-highlight-color: transparent;
+    transition: border-color 0.15s, transform 0.1s;
+  }
+  .choice-btn:active { transform: scale(0.95); }
+  .choice-btn.correct { background: #003322; border-color: #63ff84; color: #63ff84; }
+  .choice-btn.wrong { background: #330000; border-color: #ff6363; color: #ff6363; }
+  .streak { font-size: 0.85rem; color: #ffb363; margin-top: 12px; min-height: 24px; text-align: center; }
+  .overlay {
+    position: fixed; inset: 0; background: #0f0f1aee;
+    display: flex; flex-direction: column;
+    align-items: center; justify-content: center; gap: 14px; z-index: 100;
+  }
+  .overlay.hidden { display: none; }
+  .overlay-emoji { font-size: 3.5rem; }
+  .overlay-title { font-size: 1.6rem; font-weight: 700; }
+  .overlay-stats { text-align: center; color: #888; font-size: 0.9rem; line-height: 2; }
+  .start-btn {
+    padding: 14px 36px; border-radius: 12px; border: none;
+    font-size: 1rem; font-weight: 600;
+    background: linear-gradient(135deg, #ff6363, #ffb363);
+    color: #fff; cursor: pointer;
+  }
+</style>
+</head>
+<body>
+<a class="back" href="index.html">← 게임 목록</a>
+<h1>🧮 수학 퀴즈</h1>
+<div class="hud">
+  <div class="hud-box"><div class="hud-val" id="scoreEl">0</div><div class="hud-label">점수</div></div>
+  <div class="hud-box"><div class="hud-val" id="correctEl">0</div><div class="hud-label">정답</div></div>
+  <div class="hud-box"><div class="hud-val" id="timeEl">60</div><div class="hud-label">시간</div></div>
+</div>
+<div class="time-bar-wrap"><div class="time-bar" id="timeBar" style="width:100%"></div></div>
+<div class="question-card">
+  <div class="difficulty" id="diffEl">초급</div>
+  <div class="question" id="questionEl">?</div>
+</div>
+<div class="choices" id="choices"></div>
+<div class="streak" id="streakEl"></div>
+
+<div class="overlay" id="overlay">
+  <div class="overlay-emoji">🧮</div>
+  <div class="overlay-title">수학 퀴즈</div>
+  <div class="overlay-stats">60초 안에 최대한 많은<br>수학 문제를 풀어보세요!</div>
+  <button class="start-btn" id="startBtn">시작!</button>
+</div>
+
+<script>
+let score = 0, correct = 0, timeLeft = 60;
+let gameRunning = false, answered = false;
+let streak = 0, countdownTimer = null;
+let correctAnswer = 0;
+
+function getQuestion(lvl) {
+  const ops = lvl <= 2 ? ['+', '-'] : lvl <= 4 ? ['+', '-', '×'] : ['+', '-', '×', '÷'];
+  const op = ops[Math.floor(Math.random() * ops.length)];
+  let a, b, ans;
+  if (op === '+') { a = randInt(lvl * 5, lvl * 15); b = randInt(lvl * 5, lvl * 15); ans = a + b; }
+  else if (op === '-') { a = randInt(lvl * 10, lvl * 20); b = randInt(1, a); ans = a - b; }
+  else if (op === '×') { a = randInt(2, 3 + lvl); b = randInt(2, 3 + lvl); ans = a * b; }
+  else { b = randInt(2, 9); ans = randInt(2, 9); a = b * ans; }
+  return { text: `${a} ${op} ${b} = ?`, ans };
+}
+
+function randInt(min, max) { return Math.floor(Math.random() * (max - min + 1)) + min; }
+
+function getLevel() { return Math.min(5, Math.floor(correct / 5) + 1); }
+
+function newQuestion() {
+  answered = false;
+  const lvl = getLevel();
+  document.getElementById('diffEl').textContent = ['', '초급', '중급', '고급', '전문가', '마스터'][lvl];
+  const q = getQuestion(lvl);
+  correctAnswer = q.ans;
+  document.getElementById('questionEl').textContent = q.text;
+
+  const wrongs = new Set();
+  while (wrongs.size < 3) {
+    const w = q.ans + randInt(-lvl * 5, lvl * 5);
+    if (w !== q.ans && w > 0) wrongs.add(w);
+  }
+  const choices = [q.ans, ...wrongs].sort(() => Math.random() - 0.5);
+
+  const choicesEl = document.getElementById('choices');
+  choicesEl.innerHTML = '';
+  choices.forEach(c => {
+    const btn = document.createElement('button');
+    btn.className = 'choice-btn';
+    btn.textContent = c;
+    btn.addEventListener('click', () => answer(btn, c));
+    btn.addEventListener('touchend', e => { e.preventDefault(); answer(btn, c); });
+    choicesEl.appendChild(btn);
+  });
+}
+
+function answer(btn, val) {
+  if (!gameRunning || answered) return;
+  answered = true;
+  if (val === correctAnswer) {
+    streak++;
+    const bonus = Math.floor(streak / 3);
+    const points = 10 + bonus * 5;
+    score += points;
+    correct++;
+    document.getElementById('scoreEl').textContent = score;
+    document.getElementById('correctEl').textContent = correct;
+    btn.classList.add('correct');
+    document.getElementById('streakEl').textContent = streak >= 3 ? `🔥 ${streak}연속 정답! +${points}점` : '';
+  } else {
+    streak = 0;
+    btn.classList.add('wrong');
+    document.getElementById('streakEl').textContent = '❌ 틀렸어요!';
+    // show correct
+    document.querySelectorAll('.choice-btn').forEach(b => {
+      if (+b.textContent === correctAnswer) b.classList.add('correct');
+    });
+  }
+  setTimeout(newQuestion, 500);
+}
+
+function startGame() {
+  score = 0; correct = 0; timeLeft = 60; streak = 0; gameRunning = true;
+  document.getElementById('scoreEl').textContent = 0;
+  document.getElementById('correctEl').textContent = 0;
+  document.getElementById('timeEl').textContent = 60;
+  document.getElementById('timeBar').style.width = '100%';
+  document.getElementById('streakEl').textContent = '';
+  document.getElementById('overlay').classList.add('hidden');
+  newQuestion();
+
+  countdownTimer = setInterval(() => {
+    timeLeft--;
+    document.getElementById('timeEl').textContent = timeLeft;
+    document.getElementById('timeBar').style.width = (timeLeft / 60 * 100) + '%';
+    if (timeLeft <= 0) endGame();
+  }, 1000);
+}
+
+function endGame() {
+  gameRunning = false;
+  clearInterval(countdownTimer);
+  const overlay = document.getElementById('overlay');
+  const acc = correct > 0 ? Math.round(correct / (correct + (correct - correct)) * 100) : 0;
+  overlay.querySelector('.overlay-emoji').textContent = score >= 300 ? '🏆' : score >= 150 ? '🎉' : '💪';
+  overlay.querySelector('.overlay-title').textContent = '게임 종료!';
+  overlay.querySelector('.overlay-stats').innerHTML = `점수: <strong style="color:#ff6363">${score}점</strong><br>정답: ${correct}개<br>최고 레벨: ${getLevel()}단계`;
+  document.getElementById('startBtn').textContent = '다시 하기';
+  overlay.classList.remove('hidden');
+}
+
+document.getElementById('startBtn').addEventListener('click', startGame);
+</script>
+</body>
+</html>
