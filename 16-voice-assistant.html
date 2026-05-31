@@ -19,21 +19,60 @@
       overflow: hidden;
     }
 
+    /* ── Setup ── */
     .setup-screen {
       display: flex;
       flex-direction: column;
       align-items: center;
-      gap: 16px;
-      padding: 32px;
+      gap: 14px;
+      padding: 28px 24px;
       background: rgba(255,255,255,0.05);
       border-radius: 24px;
       border: 1px solid rgba(255,255,255,0.1);
-      max-width: 420px;
-      width: 90%;
+      max-width: 400px;
+      width: 92%;
     }
 
     .setup-screen h2 { font-size: 1.4rem; color: #a78bfa; }
-    .setup-screen p { font-size: 0.85rem; color: #94a3b8; text-align: center; }
+    .setup-screen .sub { font-size: 0.82rem; color: #64748b; text-align: center; }
+
+    /* Provider tabs */
+    .provider-tabs {
+      display: flex; width: 100%;
+      background: rgba(255,255,255,0.05);
+      border-radius: 12px; padding: 4px; gap: 4px;
+    }
+    .tab-btn {
+      flex: 1; padding: 10px 8px; border-radius: 9px;
+      border: none; cursor: pointer;
+      font-size: 0.88rem; font-weight: 600;
+      transition: all 0.2s;
+      background: transparent; color: #64748b;
+    }
+    .tab-btn.active {
+      color: #fff;
+    }
+    .tab-btn.gemini.active { background: linear-gradient(135deg, #1a73e8, #34a853); }
+    .tab-btn.claude.active { background: linear-gradient(135deg, #7c3aed, #4f46e5); }
+
+    /* Free badge */
+    .free-badge {
+      display: inline-block;
+      background: linear-gradient(135deg, #34a853, #0d9488);
+      color: #fff; font-size: 0.6rem; font-weight: 900;
+      padding: 2px 6px; border-radius: 8px; margin-left: 4px;
+      vertical-align: middle; letter-spacing: 0.5px;
+    }
+
+    .provider-info {
+      width: 100%; padding: 12px 14px;
+      background: rgba(255,255,255,0.03);
+      border: 1px solid rgba(255,255,255,0.07);
+      border-radius: 10px;
+      font-size: 0.8rem; color: #94a3b8; line-height: 1.6;
+    }
+    .provider-info a { color: #60a5fa; text-decoration: none; }
+    .provider-info a:hover { text-decoration: underline; }
 
     .setup-screen input {
       width: 100%;
@@ -45,25 +84,31 @@
       font-size: 0.9rem;
       outline: none;
     }
-
     .setup-screen input:focus { border-color: #a78bfa; }
+    .setup-screen input.gemini-input:focus { border-color: #1a73e8; }
 
-    .setup-screen button {
+    .start-btn {
       width: 100%;
-      padding: 12px;
+      padding: 13px;
       border-radius: 12px;
       border: none;
-      background: linear-gradient(135deg, #7c3aed, #4f46e5);
       color: #fff;
-      font-size: 1rem;
+      font-size: 1rem; font-weight: 600;
       cursor: pointer;
       transition: opacity 0.2s;
     }
-    .setup-screen button:hover { opacity: 0.85; }
+    .start-btn.gemini { background: linear-gradient(135deg, #1a73e8, #34a853); }
+    .start-btn.claude { background: linear-gradient(135deg, #7c3aed, #4f46e5); }
+    .start-btn:hover { opacity: 0.85; }
 
-    .main-screen { display: none; flex-direction: column; align-items: center; gap: 32px; width: 100%; }
+    .wake-hint {
+      font-size: 0.74rem; color: #475569; text-align: center;
+    }
+    .wake-hint strong { color: #a78bfa; }
 
-    /* Orb */
+    /* ── Main ── */
+    .main-screen { display: none; flex-direction: column; align-items: center; gap: 28px; width: 100%; }
+
     .orb-container { position: relative; width: 180px; height: 180px; }
 
     .orb {
@@ -73,42 +118,36 @@
       box-shadow: 0 0 40px rgba(124,58,237,0.5);
       cursor: pointer;
       transition: transform 0.2s;
-      position: relative;
-      z-index: 2;
+      position: relative; z-index: 2;
     }
-
     .orb:hover { transform: scale(1.05); }
 
     .ring {
-      position: absolute;
-      top: 50%; left: 50%;
+      position: absolute; top: 50%; left: 50%;
       transform: translate(-50%, -50%);
       border-radius: 50%;
       border: 2px solid rgba(167,139,250,0.3);
       animation: none;
     }
-
     .ring-1 { width: 220px; height: 220px; }
     .ring-2 { width: 270px; height: 270px; border-color: rgba(167,139,250,0.15); }
 
     @keyframes pulse-ring {
-      0% { transform: translate(-50%, -50%) scale(0.95); opacity: 0.8; }
-      100% { transform: translate(-50%, -50%) scale(1.1); opacity: 0; }
+      0%   { transform: translate(-50%, -50%) scale(0.95); opacity: 0.8; }
+      100% { transform: translate(-50%, -50%) scale(1.1);  opacity: 0; }
     }
-
-    .orb-container.listening .ring { animation: pulse-ring 1.2s ease-out infinite; }
+    .orb-container.listening .ring   { animation: pulse-ring 1.2s ease-out infinite; }
     .orb-container.listening .ring-2 { animation: pulse-ring 1.2s ease-out 0.4s infinite; }
-    .orb-container.listening .orb { box-shadow: 0 0 70px rgba(124,58,237,0.9); }
+    .orb-container.listening .orb    { box-shadow: 0 0 70px rgba(124,58,237,0.9); }
 
     .orb-container.speaking .orb {
       animation: orb-speak 0.5s ease-in-out infinite alternate;
     }
     @keyframes orb-speak {
-      from { transform: scale(1); box-shadow: 0 0 40px rgba(124,58,237,0.5); }
+      from { transform: scale(1);    box-shadow: 0 0 40px rgba(124,58,237,0.5); }
       to   { transform: scale(1.08); box-shadow: 0 0 80px rgba(167,139,250,0.9); }
     }
 
-    /* Waveform bars */
     .wave-bars {
       display: flex; align-items: center; justify-content: center;
       gap: 4px; height: 40px;
@@ -118,12 +157,11 @@
     .bar {
       width: 4px; border-radius: 2px;
       background: linear-gradient(to top, #7c3aed, #a78bfa);
-      animation: none;
       height: 6px;
     }
     @keyframes wave-anim {
       0%, 100% { height: 6px; }
-      50% { height: 30px; }
+      50%       { height: 30px; }
     }
     .wave-bars.active .bar:nth-child(1) { animation: wave-anim 0.6s ease-in-out 0.0s infinite; }
     .wave-bars.active .bar:nth-child(2) { animation: wave-anim 0.6s ease-in-out 0.1s infinite; }
@@ -138,27 +176,23 @@
     }
     .status-label.active { color: #a78bfa; }
 
-    /* Transcript bubble */
     .transcript {
       background: rgba(255,255,255,0.04);
       border: 1px solid rgba(255,255,255,0.08);
       border-radius: 16px;
-      padding: 16px 20px;
-      max-width: 500px; width: 90%;
-      min-height: 56px;
-      font-size: 0.95rem;
-      line-height: 1.6;
-      color: #e2e8f0;
-      text-align: center;
+      padding: 14px 18px;
+      max-width: 480px; width: 90%;
+      min-height: 52px;
+      font-size: 0.92rem; line-height: 1.6;
+      color: #e2e8f0; text-align: center;
       display: none;
     }
     .transcript.visible { display: block; }
-    .transcript .role { font-size: 0.75rem; color: #64748b; margin-bottom: 4px; }
+    .transcript .role { font-size: 0.72rem; color: #64748b; margin-bottom: 4px; }
 
-    /* Conversation history */
     .history {
-      max-width: 500px; width: 90%;
-      max-height: 220px;
+      max-width: 480px; width: 90%;
+      max-height: 180px;
       overflow-y: auto;
       display: flex; flex-direction: column; gap: 8px;
     }
@@ -166,18 +200,13 @@
     .history::-webkit-scrollbar-thumb { background: rgba(167,139,250,0.3); border-radius: 2px; }
 
     .msg {
-      padding: 10px 14px;
-      border-radius: 12px;
-      font-size: 0.85rem;
-      line-height: 1.5;
+      padding: 9px 13px; border-radius: 12px;
+      font-size: 0.83rem; line-height: 1.5;
     }
-    .msg.user { background: rgba(124,58,237,0.2); border: 1px solid rgba(124,58,237,0.3); align-self: flex-end; color: #c4b5fd; }
+    .msg.user      { background: rgba(124,58,237,0.2); border: 1px solid rgba(124,58,237,0.3); align-self: flex-end;  color: #c4b5fd; }
     .msg.assistant { background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.08); align-self: flex-start; color: #e2e8f0; }
 
-    .hint {
-      font-size: 0.78rem; color: #475569;
-      text-align: center;
-    }
+    .hint { font-size: 0.76rem; color: #475569; text-align: center; }
     .hint kbd {
       background: rgba(255,255,255,0.08);
       border: 1px solid rgba(255,255,255,0.12);
@@ -195,6 +224,15 @@
       transition: color 0.2s;
     }
     .settings-btn:hover { color: #a78bfa; }
+
+    .provider-chip {
+      position: fixed; top: 16px; left: 16px;
+      background: rgba(255,255,255,0.06);
+      border: 1px solid rgba(255,255,255,0.1);
+      color: #64748b; border-radius: 20px;
+      padding: 4px 10px; font-size: 0.72rem;
+      display: none;
+    }
   </style>
 </head>
 <body>
@@ -202,10 +240,28 @@
 <!-- Setup -->
 <div class="setup-screen" id="setupScreen">
   <h2>🎙 헤이 로이</h2>
-  <p>시작하려면 Anthropic API 키를 입력하세요.<br>키는 브라우저에만 저장되며 외부로 전송되지 않습니다.</p>
-  <input type="password" id="apiKeyInput" placeholder="sk-ant-..." />
-  <p style="font-size:0.75rem;color:#475569">웨이크워드: <strong style="color:#a78bfa">"헤이 로이"</strong> 또는 <strong style="color:#a78bfa">"hey roy"</strong></p>
-  <button id="startBtn">시작하기</button>
+
+  <div class="provider-tabs">
+    <button class="tab-btn gemini active" id="tabGemini" onclick="selectProvider('gemini')">
+      Gemini <span class="free-badge">무료</span>
+    </button>
+    <button class="tab-btn claude" id="tabClaude" onclick="selectProvider('claude')">
+      Claude
+    </button>
+  </div>
+
+  <div class="provider-info" id="providerInfo">
+    <strong style="color:#34a853">Google Gemini</strong> — 무료로 사용 가능!<br>
+    1. <a href="https://aistudio.google.com/apikey" target="_blank">aistudio.google.com/apikey</a> 접속<br>
+    2. <strong>Create API key</strong> 클릭 → 복사<br>
+    3. 아래에 붙여넣기
+  </div>
+
+  <input type="password" id="apiKeyInput" placeholder="API 키를 입력하세요" autocomplete="off" />
+
+  <div class="wake-hint">웨이크워드: <strong>"헤이 로이"</strong> 또는 <strong>"hey roy"</strong></div>
+
+  <button class="start-btn gemini" id="startBtn" onclick="handleStart()">시작하기</button>
 </div>
 
 <!-- Main -->
@@ -233,11 +289,15 @@
   <div class="hint">오브를 클릭하거나 <kbd>스페이스</kbd>를 눌러도 돼요</div>
 </div>
 
-<button class="settings-btn" id="settingsBtn" title="API 키 재설정">⚙</button>
+<div class="provider-chip" id="providerChip"></div>
+<button class="settings-btn" id="settingsBtn" title="설정">⚙</button>
 
 <script>
-  const API_KEY_STORAGE = 'heyroy_api_key';
+  const STORAGE_KEY_PROVIDER = 'heyroy_provider';
+  const STORAGE_KEY_GEMINI   = 'heyroy_gemini_key';
+  const STORAGE_KEY_CLAUDE   = 'heyroy_claude_key';
 
+  let provider = 'gemini';
   let apiKey = '';
   let recognition = null;
   let isListeningForWake = false;
@@ -248,42 +308,72 @@
   let pendingTranscript = '';
 
   const $ = id => document.getElementById(id);
-  const setupScreen = $('setupScreen');
-  const mainScreen = $('mainScreen');
-  const orbContainer = $('orbContainer');
-  const orb = $('orb');
-  const waveBars = $('waveBars');
-  const statusLabel = $('statusLabel');
-  const transcriptEl = $('transcript');
-  const transcriptRole = $('transcriptRole');
-  const transcriptText = $('transcriptText');
-  const historyEl = $('history');
-  const settingsBtn = $('settingsBtn');
-  const apiKeyInput = $('apiKeyInput');
 
-  // Load saved key
-  const savedKey = localStorage.getItem(API_KEY_STORAGE);
-  if (savedKey) { apiKeyInput.value = savedKey; }
+  // Restore saved state
+  provider = localStorage.getItem(STORAGE_KEY_PROVIDER) || 'gemini';
+  selectProvider(provider, true);
+  const savedKey = localStorage.getItem(provider === 'gemini' ? STORAGE_KEY_GEMINI : STORAGE_KEY_CLAUDE);
+  if (savedKey) $('apiKeyInput').value = savedKey;
 
-  $('startBtn').addEventListener('click', () => {
-    const key = apiKeyInput.value.trim();
-    if (!key.startsWith('sk-ant-')) {
-      alert('올바른 Anthropic API 키를 입력하세요 (sk-ant- 로 시작)');
-      return;
+  function selectProvider(p, silent) {
+    provider = p;
+    $('tabGemini').classList.toggle('active', p === 'gemini');
+    $('tabClaude').classList.toggle('active', p === 'claude');
+    $('startBtn').className = 'start-btn ' + p;
+    $('apiKeyInput').className = p === 'gemini' ? 'gemini-input' : '';
+
+    if (p === 'gemini') {
+      $('apiKeyInput').placeholder = 'AIza... (Google AI Studio 키)';
+      $('providerInfo').innerHTML = `
+        <strong style="color:#34a853">Google Gemini</strong> — 무료로 사용 가능!<br>
+        1. <a href="https://aistudio.google.com/apikey" target="_blank">aistudio.google.com/apikey</a> 접속<br>
+        2. <strong>Create API key</strong> 클릭 → 복사<br>
+        3. 아래에 붙여넣기
+      `;
+    } else {
+      $('apiKeyInput').placeholder = 'sk-ant-... (Anthropic 키)';
+      $('providerInfo').innerHTML = `
+        <strong style="color:#a78bfa">Claude (Anthropic)</strong> — 유료 API<br>
+        1. <a href="https://console.anthropic.com" target="_blank">console.anthropic.com</a> 접속<br>
+        2. API Keys → <strong>Create Key</strong><br>
+        3. 크레딧 충전 후 사용
+      `;
     }
+
+    if (!silent) {
+      const stored = localStorage.getItem(p === 'gemini' ? STORAGE_KEY_GEMINI : STORAGE_KEY_CLAUDE);
+      $('apiKeyInput').value = stored || '';
+    }
+  }
+
+  function handleStart() {
+    const key = $('apiKeyInput').value.trim();
+    if (!key) { alert('API 키를 입력하세요.'); return; }
+
+    if (provider === 'claude' && !key.startsWith('sk-ant-')) {
+      alert('Claude 키는 sk-ant- 로 시작해야 해요.'); return;
+    }
+    if (provider === 'gemini' && !key.startsWith('AIza')) {
+      alert('Gemini 키는 AIza 로 시작해야 해요.\naistudio.google.com/apikey 에서 발급받으세요.'); return;
+    }
+
     apiKey = key;
-    localStorage.setItem(API_KEY_STORAGE, key);
+    localStorage.setItem(STORAGE_KEY_PROVIDER, provider);
+    localStorage.setItem(provider === 'gemini' ? STORAGE_KEY_GEMINI : STORAGE_KEY_CLAUDE, key);
     startApp();
-  });
+  }
 
-  settingsBtn.addEventListener('click', () => {
+  $('settingsBtn').addEventListener('click', () => {
     stopAll();
-    setupScreen.style.display = 'flex';
-    mainScreen.style.display = 'none';
-    settingsBtn.style.display = 'none';
+    $('setupScreen').style.display = 'flex';
+    $('mainScreen').style.display = 'none';
+    $('settingsBtn').style.display = 'none';
+    $('providerChip').style.display = 'none';
+    conversationHistory = [];
+    $('history').innerHTML = '';
   });
 
-  orb.addEventListener('click', () => {
+  $('orb').addEventListener('click', () => {
     if (isSpeaking) { stopSpeech(); return; }
     if (!isCapturing) triggerCapture();
   });
@@ -297,9 +387,11 @@
   });
 
   function startApp() {
-    setupScreen.style.display = 'none';
-    mainScreen.style.display = 'flex';
-    settingsBtn.style.display = 'flex';
+    $('setupScreen').style.display = 'none';
+    $('mainScreen').style.display = 'flex';
+    $('settingsBtn').style.display = 'flex';
+    $('providerChip').style.display = 'block';
+    $('providerChip').textContent = provider === 'gemini' ? '⚡ Gemini 무료' : '✦ Claude';
     initSpeechRecognition();
   }
 
@@ -351,17 +443,15 @@
     const combined = (finalText || interimText).replace(/\s+/g, ' ').trim();
 
     if (isListeningForWake && !isCapturing) {
-      const wakeWords = ['헤이 로이', '헤이로이', 'hey roy', 'hey, roy'];
-      const detected = wakeWords.some(w => combined.includes(w));
-      if (detected) triggerCapture();
+      const wakeWords = ['헤이 로이', '헤이로이', 'hey roy', 'hey, roy', '헤이로', '헤이 로'];
+      if (wakeWords.some(w => combined.includes(w))) triggerCapture();
       return;
     }
 
     if (isCapturing) {
       clearTimeout(captureTimeout);
       pendingTranscript = combined;
-
-      showTranscript('나', combined, false);
+      showTranscript('나', combined);
 
       if (finalText) {
         captureTimeout = setTimeout(() => processCommand(pendingTranscript), 800);
@@ -378,17 +468,16 @@
     isCapturing = true;
     isListeningForWake = false;
     pendingTranscript = '';
-
     setOrbState('listening');
     setStatus('듣고 있어요...', true);
     hideTranscript();
-    waveBars.classList.add('active');
+    $('waveBars').classList.add('active');
 
     captureTimeout = setTimeout(() => {
       if (!pendingTranscript) {
         isCapturing = false;
         startWakeWordListening();
-        waveBars.classList.remove('active');
+        $('waveBars').classList.remove('active');
       }
     }, 8000);
   }
@@ -397,32 +486,60 @@
     if (!text.trim()) { startWakeWordListening(); return; }
     clearTimeout(captureTimeout);
     isCapturing = false;
-    waveBars.classList.remove('active');
+    $('waveBars').classList.remove('active');
 
-    const cleanText = text.replace(/헤이\s*로이|hey\s*,?\s*roy/gi, '').trim();
+    const cleanText = text.replace(/헤이\s*로이?|hey\s*,?\s*roy/gi, '').trim();
     if (!cleanText) { startWakeWordListening(); return; }
 
     addHistory('user', cleanText);
-    showTranscript('나', cleanText, false);
+    showTranscript('나', cleanText);
     setStatus('생각하는 중...', true);
     setOrbState('thinking');
-
     recognition.stop();
 
     try {
-      const reply = await askClaude(cleanText);
+      const reply = provider === 'gemini' ? await askGemini(cleanText) : await askClaude(cleanText);
       addHistory('assistant', reply);
-      showTranscript('로이', reply, true);
+      showTranscript('로이', reply);
       speak(reply);
     } catch(e) {
       const errMsg = '죄송해요, 오류가 발생했어요: ' + e.message;
-      showTranscript('로이', errMsg, true);
+      showTranscript('로이', errMsg);
       speak(errMsg);
     }
   }
 
+  async function askGemini(userText) {
+    const contents = conversationHistory.map(m => ({
+      role: m.role === 'assistant' ? 'model' : 'user',
+      parts: [{ text: m.content }]
+    }));
+
+    const res = await fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`,
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          system_instruction: { parts: [{ text: '당신은 "로이"라는 이름의 친근한 한국어 음성 어시스턴트입니다. 짧고 자연스러운 구어체로 대답하세요. 마크다운, 이모지, 특수문자는 사용하지 마세요.' }] },
+          contents: [...contents, { role: 'user', parts: [{ text: userText }] }],
+          generationConfig: { maxOutputTokens: 300, temperature: 0.8 }
+        })
+      }
+    );
+
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err?.error?.message || `HTTP ${res.status}`);
+    }
+
+    const data = await res.json();
+    return data.candidates[0].content.parts[0].text.trim();
+  }
+
   async function askClaude(userText) {
     const messages = conversationHistory.map(m => ({ role: m.role, content: m.content }));
+    messages.push({ role: 'user', content: userText });
 
     const res = await fetch('https://api.anthropic.com/v1/messages', {
       method: 'POST',
@@ -434,9 +551,9 @@
       },
       body: JSON.stringify({
         model: 'claude-sonnet-4-6',
-        max_tokens: 512,
-        system: '당신은 "로이"라는 이름의 친근하고 유능한 음성 어시스턴트입니다. 짧고 명확하게 한국어로 대답하세요. 음성으로 읽히므로 마크다운, 이모지, 특수문자는 사용하지 마세요. 자연스러운 구어체로 답하세요.',
-        messages: messages
+        max_tokens: 400,
+        system: '당신은 "로이"라는 이름의 친근한 한국어 음성 어시스턴트입니다. 짧고 자연스러운 구어체로 대답하세요. 마크다운, 이모지, 특수문자는 사용하지 마세요.',
+        messages
       })
     });
 
@@ -446,16 +563,11 @@
     }
 
     const data = await res.json();
-    return data.content[0].text;
+    return data.content[0].text.trim();
   }
 
   function speak(text) {
-    if (!window.speechSynthesis) {
-      setStatus('"헤이 로이"라고 불러보세요', false);
-      setOrbState('idle');
-      startWakeWordListening();
-      return;
-    }
+    if (!window.speechSynthesis) { startWakeWordListening(); return; }
 
     isSpeaking = true;
     setOrbState('speaking');
@@ -464,21 +576,12 @@
     const utter = new SpeechSynthesisUtterance(text);
     utter.lang = 'ko-KR';
     utter.rate = 1.05;
-    utter.pitch = 1;
 
     const voices = window.speechSynthesis.getVoices();
     const koVoice = voices.find(v => v.lang.startsWith('ko'));
     if (koVoice) utter.voice = koVoice;
 
-    utter.onend = () => {
-      isSpeaking = false;
-      startWakeWordListening();
-    };
-    utter.onerror = () => {
-      isSpeaking = false;
-      startWakeWordListening();
-    };
-
+    utter.onend = utter.onerror = () => { isSpeaking = false; startWakeWordListening(); };
     window.speechSynthesis.speak(utter);
   }
 
@@ -492,44 +595,39 @@
     clearTimeout(captureTimeout);
     window.speechSynthesis?.cancel();
     try { recognition?.stop(); } catch(e) {}
-    isSpeaking = false;
-    isCapturing = false;
-    isListeningForWake = false;
-    waveBars.classList.remove('active');
+    isSpeaking = false; isCapturing = false; isListeningForWake = false;
+    $('waveBars').classList.remove('active');
   }
 
   function setOrbState(state) {
-    orbContainer.classList.remove('listening', 'speaking', 'thinking');
-    if (state !== 'idle') orbContainer.classList.add(state === 'thinking' ? 'speaking' : state);
+    $('orbContainer').classList.remove('listening', 'speaking');
+    if (state === 'listening') $('orbContainer').classList.add('listening');
+    if (state === 'speaking' || state === 'thinking') $('orbContainer').classList.add('speaking');
   }
 
   function setStatus(text, highlight) {
-    statusLabel.textContent = text;
-    statusLabel.classList.toggle('active', highlight);
+    $('statusLabel').textContent = text;
+    $('statusLabel').classList.toggle('active', !!highlight);
   }
 
-  function showTranscript(role, text, isAssistant) {
-    transcriptRole.textContent = role;
-    transcriptText.textContent = text;
-    transcriptEl.className = 'transcript visible';
+  function showTranscript(role, text) {
+    $('transcriptRole').textContent = role;
+    $('transcriptText').textContent = text;
+    $('transcript').className = 'transcript visible';
   }
 
-  function hideTranscript() {
-    transcriptEl.className = 'transcript';
-  }
+  function hideTranscript() { $('transcript').className = 'transcript'; }
 
   function addHistory(role, content) {
     conversationHistory.push({ role, content });
     if (conversationHistory.length > 20) conversationHistory.splice(0, 2);
-
     const div = document.createElement('div');
     div.className = 'msg ' + role;
     div.textContent = content;
-    historyEl.appendChild(div);
-    historyEl.scrollTop = historyEl.scrollHeight;
+    $('history').appendChild(div);
+    $('history').scrollTop = $('history').scrollHeight;
   }
 
-  // Load voices on init
   window.speechSynthesis?.getVoices();
   window.speechSynthesis?.addEventListener('voiceschanged', () => window.speechSynthesis.getVoices());
 </script>
